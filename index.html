@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Gestão — RDO cbm</title>
+<link rel="stylesheet" href="css/estilo.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ── Tela de login ────────────────────────────────────────────────── -->
+<div id="tela-login">
+  <div class="caixa-login">
+    <h1>Painel de Gestão</h1>
+    <p class="sub">RDO cbm — acompanhamento de atividades e fotos</p>
+    <div id="erro-login"></div>
+    <form id="form-login">
+      <div class="campo">
+        <label for="input-email">E-mail</label>
+        <input type="email" id="input-email" autocomplete="username" required>
+      </div>
+      <div class="campo">
+        <label for="input-senha">Senha</label>
+        <input type="password" id="input-senha" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="primario" id="botao-login">Entrar</button>
+    </form>
+  </div>
+</div>
+
+<!-- ── Dashboard ────────────────────────────────────────────────────── -->
+<div id="dashboard">
+  <header class="topo">
+    <h1>Painel de Gestão — RDO cbm</h1>
+    <div class="usuario">
+      <span id="nome-usuario"></span>
+      <button class="sair" id="botao-tema" title="Alternar tema claro/escuro"></button>
+      <button class="sair" id="botao-sair">Sair</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="barra-filtros">
+      <div class="campo">
+        <label for="filtro-inicio">De</label>
+        <input type="date" id="filtro-inicio">
+      </div>
+      <div class="campo">
+        <label for="filtro-fim">Até</label>
+        <input type="date" id="filtro-fim">
+      </div>
+      <div class="campo">
+        <label for="filtro-trecho">Trecho</label>
+        <select id="filtro-trecho"><option value="">Todos</option></select>
+      </div>
+      <div class="campo">
+        <label for="filtro-encarregado">Encarregado</label>
+        <select id="filtro-encarregado"><option value="">Todos</option></select>
+      </div>
+      <div class="campo">
+        <label for="filtro-atividade">Atividade</label>
+        <select id="filtro-atividade"><option value="">Todas</option></select>
+      </div>
+      <div class="campo">
+        <label for="filtro-servico">Serviço</label>
+        <select id="filtro-servico"><option value="">Todos</option></select>
+      </div>
+      <button class="secundario" id="botao-atualizar">Atualizar</button>
+      <span class="status-atualizacao" id="status-atualizacao"></span>
+    </div>
+
+    <div class="grade-kpi" id="grade-kpi">
+      <div class="kpi"><div class="valor" id="kpi-registros">—</div><div class="rotulo">registros no período</div></div>
+      <div class="kpi"><div class="valor" id="kpi-fotos">—</div><div class="rotulo">fotos no período</div></div>
+      <div class="kpi"><div class="valor" id="kpi-encarregados">—</div><div class="rotulo">encarregados ativos</div></div>
+      <div class="kpi alerta"><div class="valor" id="kpi-faltantes">—</div><div class="rotulo">sem apontamento hoje</div></div>
+    </div>
+
+    <div class="duas-colunas">
+      <div class="secao">
+        <h2>Registros por dia <span class="contagem">últimos 14 dias</span></h2>
+        <canvas id="grafico-dias"></canvas>
+      </div>
+      <div class="secao">
+        <h2>Sem apontamento hoje <span class="contagem" id="contagem-faltantes"></span></h2>
+        <div id="lista-faltantes"><div class="carregando">Carregando…</div></div>
+      </div>
+    </div>
+
+    <div class="secao">
+      <h2>Atividades <span class="contagem" id="contagem-atividades"></span></h2>
+      <div class="wrap-tabela" id="wrap-atividades">
+        <table class="tabela-atividades">
+          <thead>
+            <tr>
+              <th>Data/hora</th>
+              <th>Encarregado</th>
+              <th>Trecho</th>
+              <th>KM / Estaca</th>
+              <th>Serviço</th>
+              <th>Medição</th>
+            </tr>
+          </thead>
+          <tbody id="corpo-tabela-atividades">
+            <tr><td colspan="6" class="carregando">Carregando…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <button class="expandir" id="botao-expandir-atividades" hidden></button>
+    </div>
+
+    <div class="secao">
+      <h2>Fotos <span class="contagem" id="contagem-fotos"></span></h2>
+      <div class="grade-fotos" id="grade-fotos"><div class="carregando">Carregando…</div></div>
+    </div>
+  </main>
+</div>
+
+<div id="lightbox">
+  <button class="fechar" id="fechar-lightbox">&times;</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<!--
+  Ordem importa: são scripts clássicos (sem type="module") de propósito —
+  módulos ES são bloqueados por CORS ao abrir o arquivo direto com duplo
+  clique (file://), e é assim que este painel roda no dia a dia. Cada
+  arquivo depende do anterior já ter sido carregado.
+-->
+<script src="js/config.js"></script>
+<script src="js/utilidades.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/dados.js"></script>
+<script src="js/autenticacao.js"></script>
+<script src="js/tema.js"></script>
+<script src="js/principal.js"></script>
+</body>
+</html>

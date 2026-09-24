@@ -1,0 +1,348 @@
+/* Tema claro (padrão). Toda cor da interface sai daqui — nenhuma cor fixa no
+   resto do arquivo, senão ela não acompanharia a troca de tema. */
+:root {
+  --azul: #0b2545;
+  --azul-claro: #13315c;
+  --laranja: #e8842c;
+  --laranja-escuro: #d4761f;
+  --fundo: #f4f6f9;
+  --card: #ffffff;
+  --campo: #ffffff;
+  --texto: #1c2530;
+  --texto-suave: #64748b;
+  --texto-invertido: #ffffff;
+  --borda: #e2e8f0;
+  --verde: #1c9c63;
+  --vermelho: #d64545;
+  --titulo: #0b2545;
+  --erro-fundo: #fdecec;
+  --tag-fundo: #fff3e6;
+  --foto-vazia: #dde3ea;
+  --sombra-card: 0 20px 50px rgba(0,0,0,0.25);
+  --sobre-escuro: rgba(255,255,255,0.4);
+  --sobre-escuro-hover: rgba(255,255,255,0.1);
+}
+
+/* Tema escuro. Só as cores mudam: nenhuma regra de layout se repete abaixo. */
+:root[data-tema="escuro"] {
+  --azul: #111d2e;
+  --azul-claro: #17273c;
+  --laranja: #f0913a;
+  --laranja-escuro: #d97b28;
+  --fundo: #0d1117;
+  --card: #161b22;
+  --campo: #0d1117;
+  --texto: #e6edf3;
+  --texto-suave: #9aa5b1;
+  --texto-invertido: #ffffff;
+  --borda: #2b323c;
+  --verde: #3fb950;
+  --vermelho: #f4756b;
+  --titulo: #79b8ff;
+  --erro-fundo: #3a1d1d;
+  --tag-fundo: #3a2a17;
+  --foto-vazia: #21262d;
+  --sombra-card: 0 20px 50px rgba(0,0,0,0.55);
+  --sobre-escuro: rgba(255,255,255,0.28);
+  --sobre-escuro-hover: rgba(255,255,255,0.08);
+}
+
+/* Avisa o navegador para desenhar barra de rolagem e campos nativos na cor
+   certa — sem isto, o select e o input de data continuam brancos no escuro. */
+:root { color-scheme: light; }
+:root[data-tema="escuro"] { color-scheme: dark; }
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  background: var(--fundo);
+  color: var(--texto);
+}
+
+/* ── Login ─────────────────────────────────────────────────────────── */
+#tela-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, var(--azul) 0%, var(--azul-claro) 100%);
+}
+.caixa-login {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 40px 36px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: var(--sombra-card);
+}
+.caixa-login h1 {
+  font-size: 20px;
+  margin: 0 0 4px;
+  color: var(--titulo);
+}
+.caixa-login p.sub {
+  margin: 0 0 24px;
+  color: var(--texto-suave);
+  font-size: 13px;
+}
+.campo { margin-bottom: 14px; }
+.campo label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--texto-suave);
+  margin-bottom: 5px;
+}
+.campo input, .campo select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--campo);
+  color: var(--texto);
+}
+.campo input:focus, .campo select:focus {
+  outline: none;
+  border-color: var(--laranja);
+}
+button.primario {
+  width: 100%;
+  padding: 11px;
+  border: none;
+  border-radius: 8px;
+  background: var(--laranja);
+  color: var(--texto-invertido);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 6px;
+}
+button.primario:disabled { opacity: 0.6; cursor: default; }
+button.primario:hover:not(:disabled) { background: var(--laranja-escuro); }
+#erro-login {
+  background: var(--erro-fundo);
+  color: var(--vermelho);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  margin-bottom: 14px;
+  display: none;
+}
+
+/* ── Dashboard ─────────────────────────────────────────────────────── */
+#dashboard { display: none; }
+header.topo {
+  background: var(--azul);
+  color: var(--texto-invertido);
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+header.topo h1 { font-size: 16px; margin: 0; font-weight: 600; }
+header.topo .usuario { font-size: 12px; opacity: 0.85; display: flex; align-items: center; gap: 12px; }
+header.topo button.sair {
+  background: transparent;
+  border: 1px solid var(--sobre-escuro);
+  color: var(--texto-invertido);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+header.topo button.sair:hover { background: var(--sobre-escuro-hover); }
+
+main {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 20px 24px 60px;
+}
+
+.barra-filtros {
+  background: var(--card);
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: end;
+  margin-bottom: 20px;
+}
+.barra-filtros .campo { margin-bottom: 0; min-width: 150px; }
+.barra-filtros button.secundario {
+  padding: 10px 16px;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  background: var(--campo);
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--texto);
+}
+.barra-filtros button.secundario:hover { background: var(--fundo); }
+.barra-filtros .status-atualizacao {
+  font-size: 12px;
+  color: var(--texto-suave);
+  margin-left: auto;
+}
+
+.grade-kpi {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.kpi {
+  background: var(--card);
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.kpi .valor { font-size: 28px; font-weight: 700; color: var(--titulo); line-height: 1.1; }
+.kpi .rotulo { font-size: 12px; color: var(--texto-suave); margin-top: 4px; }
+.kpi.alerta .valor { color: var(--vermelho); }
+
+.secao {
+  background: var(--card);
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+.secao h2 {
+  font-size: 14px;
+  margin: 0 0 14px;
+  color: var(--titulo);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.secao h2 .contagem {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--texto-suave);
+}
+
+.duas-colunas {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 860px) {
+  .duas-colunas { grid-template-columns: 1fr; }
+}
+
+canvas#grafico-dias { max-height: 220px; }
+
+.lista-faltantes { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; }
+.lista-faltantes li {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--borda);
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+}
+.lista-faltantes li:last-child { border-bottom: none; }
+.lista-faltantes .ult-registro { color: var(--texto-suave); font-size: 11px; }
+.vazio-ok { color: var(--verde); font-size: 13px; padding: 8px 0; }
+
+table.tabela-atividades { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.tabela-atividades th {
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--texto-suave);
+  border-bottom: 2px solid var(--borda);
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+table.tabela-atividades td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--borda);
+  vertical-align: top;
+}
+table.tabela-atividades tr:hover td { background: var(--fundo); }
+
+/* Cabeçalho fixo ao rolar: sem isto, quem desce na lista perde de vista
+   qual coluna é qual. Precisa de fundo próprio, senão as linhas passam por
+   baixo e aparecem através dele. */
+table.tabela-atividades thead th {
+  position: sticky;
+  top: 0;
+  background: var(--card);
+  z-index: 1;
+}
+.tag-terceiro {
+  display: inline-block;
+  font-size: 10px;
+  background: var(--tag-fundo);
+  color: var(--laranja);
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+}
+.wrap-tabela { overflow-x: auto; }
+
+/* Altura limitada às primeiras linhas; o valor exato é medido em JS, porque
+   as linhas variam de altura (estaca longa quebra em duas). */
+.wrap-tabela.recolhida { overflow-y: auto; }
+
+/* Sombra no rodapé enquanto há conteúdo abaixo — deixa claro que a lista
+   continua, em vez de parecer que acabou ali. */
+.wrap-tabela.recolhida {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent 100%);
+}
+
+button.expandir {
+  width: 100%;
+  margin-top: 10px;
+  padding: 9px;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  background: var(--campo);
+  color: var(--titulo);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+button.expandir:hover { background: var(--fundo); }
+
+.grade-fotos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+.foto-item {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--borda);
+  background: var(--fundo);
+  cursor: pointer;
+}
+.foto-item img { width: 100%; height: 120px; object-fit: cover; display: block; background: var(--foto-vazia); }
+.foto-item .legenda { padding: 6px 8px; font-size: 11px; color: var(--texto-suave); }
+.foto-item .legenda b { color: var(--texto); display: block; font-size: 12px; margin-bottom: 2px; }
+
+.vazio { color: var(--texto-suave); font-size: 13px; padding: 12px 0; text-align: center; }
+.carregando { color: var(--texto-suave); font-size: 13px; padding: 12px 0; text-align: center; }
+
+/* Lightbox simples para ver a foto ampliada */
+#lightbox {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+}
+#lightbox img { max-width: 100%; max-height: 100%; border-radius: 6px; }
+#lightbox .fechar {
+  position: absolute; top: 20px; right: 26px;
+  color: var(--texto-invertido); font-size: 28px; cursor: pointer;
+  background: none; border: none;
+}
