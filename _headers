@@ -1,0 +1,11 @@
+# Cabeçalhos HTTP aplicados pelo Netlify a todas as páginas do painel.
+#
+# Cache-Control: sempre revalidar. Os arquivos não têm versão no nome, e um
+# index.html novo com um .js antigo do cache quebraria a página depois de
+# uma publicação.
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Cache-Control: public, max-age=0, must-revalidate

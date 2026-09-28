@@ -1,47 +1,60 @@
-// Renderização da tela: KPIs, gráfico, tabela de atividades, grade de fotos
-// e o lightbox. Não faz nenhuma chamada de rede — só lê os dados que
-// dados.js já baixou e guardou em cacheRegistros/cacheFotos.
-
 let grafico = null;
 
-/// Quantas linhas de atividade ficam à vista antes de precisar rolar.
 const LINHAS_VISIVEIS = 5;
 
-/// Se a lista está expandida. Fica fora de atualizarTabela() para a escolha
-/// sobreviver a uma troca de filtro — recolher sozinho a cada filtro seria
-/// desfazer o que a pessoa acabou de pedir.
 let atividadesExpandidas = false;
 
-// Preenchidos por carregarTudo() (dados.js) a cada "Atualizar"; lidos por
-// aplicarFiltrosLocais() para recortar por trecho/encarregado sem nova
-// chamada de rede.
 let cacheRegistros = [];
 let cacheFotos = [];
+
+let periodoCarregado = { inicio: new Date(), fim: new Date() };
+
+let recorteAtual = { registros: [], fotos: [] };
 
 function mostrarDashboard(user) {
   document.getElementById('tela-login').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
-  // nomeExibicao vem da tabela de gestores (autenticacao.js) — o nome do
-  // painel é o que o administrador cadastrou lá, não o que a conta traz.
   document.getElementById('nome-usuario').textContent =
     user.nomeExibicao || user.email;
 
-  const hoje = new Date();
-  const inicio = new Date(hoje); inicio.setDate(inicio.getDate() - 6);
-  document.getElementById('filtro-inicio').value = chaveDia(inicio);
-  document.getElementById('filtro-fim').value = chaveDia(hoje);
+  aplicarAtalhoPeriodo('mes');
+}
 
+function intervaloDoAtalho(atalho) {
+  const hoje = new Date();
+  const inicio = new Date(hoje);
+  if (atalho === '7dias') inicio.setDate(inicio.getDate() - 6);
+  else if (atalho === '30dias') inicio.setDate(inicio.getDate() - 29);
+  else if (atalho === 'mes') inicio.setDate(1);
+  return [chaveDia(inicio), chaveDia(hoje)];
+}
+
+function aplicarAtalhoPeriodo(atalho) {
+  const [inicio, fim] = intervaloDoAtalho(atalho);
+  document.getElementById('filtro-inicio').value = inicio;
+  document.getElementById('filtro-fim').value = fim;
+  marcarAtalhoPeriodo();
   carregarTudo();
 }
 
-/// Preenche um select com as opções, preservando o que já estava escolhido
-/// se aquele valor ainda existir nos dados recém-carregados.
+function marcarAtalhoPeriodo() {
+  const inicio = document.getElementById('filtro-inicio').value;
+  const fim = document.getElementById('filtro-fim').value;
+  for (const botao of document.querySelectorAll('#atalhos-periodo button')) {
+    const [i, f] = intervaloDoAtalho(botao.dataset.periodo);
+    const ativo = i === inicio && f === fim;
+    botao.classList.toggle('ativo', ativo);
+    botao.setAttribute('aria-pressed', String(ativo));
+  }
+}
+
 function preencherSelect(id, valores, rotuloTodos) {
   const sel = document.getElementById(id);
   const escolhido = sel.value;
+  const opcoes = valores.map(v => Array.isArray(v) ? v : [v, v]);
   sel.innerHTML = `<option value="">${rotuloTodos}</option>` +
-    valores.map(v => `<option value="${escaparHtml(v)}">${escaparHtml(v)}</option>`).join('');
-  sel.value = valores.includes(escolhido) ? escolhido : '';
+    opcoes.map(([v, r]) => `<option value="${escaparHtml(v)}">${escaparHtml(r)}</option>`).join('');
+  sel.value = opcoes.some(([v]) => v === escolhido) ? escolhido : '';
 }
 
 function ordenados(campo, registros = cacheRegistros) {
@@ -50,14 +63,65 @@ function ordenados(campo, registros = cacheRegistros) {
 
 function popularSelectsDeFiltro() {
   preencherSelect('filtro-trecho', ordenados('trecho'), 'Todos');
-  preencherSelect('filtro-encarregado', ordenados('usuario_nome'), 'Todos');
+  popularKms();
+  preencherSelect('filtro-encarregado', encarregadosOrdenados(), 'Todos');
   preencherSelect('filtro-atividade', ordenados('atividade'), 'Todas');
   popularServicos();
 }
 
-/// O serviço vem em cascata sob a atividade, como no formulário do app:
-/// escolhida a Terraplanagem, o campo lista só os serviços dela. Sem isso, a
-/// lista traria dezenas de serviços de todas as frentes misturados.
+function encarregadosOrdenados() {
+  const porChave = new Map(cacheRegistros.map(r => [r.encarregado_chave, r.encarregado]));
+  return [...porChave].sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'));
+}
+
+function popularKms() {
+  const trecho = document.getElementById('filtro-trecho').value;
+  const base = trecho ? cacheRegistros.filter(r => r.trecho === trecho) : cacheRegistros;
+  const kms = new Set();
+  for (const r of base) {
+    if (r.km) kms.add(String(r.km).trim());
+    const kmFinal = String(r.km_final || '').trim();
+    if (kmFinal) kms.add(kmFinal);
+  }
+  const lista = [...kms].sort((a, b) => (Number(a) - Number(b)) || a.localeCompare(b));
+  preencherSelect('filtro-km', lista.map(k => [k, `KM ${k}`]), 'Todos');
+  popularEstacas();
+}
+
+function popularEstacas() {
+  const trecho = document.getElementById('filtro-trecho').value;
+  const km = document.getElementById('filtro-km').value;
+  const base = cacheRegistros.filter(r =>
+    (!trecho || r.trecho === trecho) && (!km || registroCobreKm(r, km)));
+  const estacas = new Map();
+  for (const r of base) {
+    for (const e of [r.estaca_inicial, r.estaca_final]) {
+      const n = estacaEmNumero(e);
+      if (!Number.isNaN(n) && !estacas.has(n)) estacas.set(n, String(e).trim());
+    }
+  }
+  const lista = [...estacas].sort((a, b) => a[0] - b[0]).map(([n, txt]) => [String(n), txt]);
+  preencherSelect('filtro-estaca-de', lista, 'Início');
+  preencherSelect('filtro-estaca-ate', lista, 'Fim');
+}
+
+function lerFiltroEstaca(id) {
+  const v = document.getElementById(id).value;
+  return v === '' ? NaN : Number(v);
+}
+
+const IDS_FILTROS_LOCAIS = [
+  'filtro-trecho', 'filtro-km', 'filtro-estaca-de', 'filtro-estaca-ate',
+  'filtro-encarregado', 'filtro-atividade', 'filtro-servico',
+];
+
+function limparFiltros() {
+  for (const id of IDS_FILTROS_LOCAIS) document.getElementById(id).value = '';
+  popularKms();
+  popularServicos();
+  aplicarFiltrosLocais();
+}
+
 function popularServicos() {
   const atividade = document.getElementById('filtro-atividade').value;
   const base = atividade
@@ -66,44 +130,49 @@ function popularServicos() {
   preencherSelect('filtro-servico', ordenados('servico_notavel', base), 'Todos');
 }
 
-// Filtro local sobre o que já foi baixado — não bate no servidor de novo, só
-// recorta cacheRegistros/cacheFotos.
 function aplicarFiltrosLocais() {
   const trecho = document.getElementById('filtro-trecho').value;
+  const km = document.getElementById('filtro-km').value;
+  const estacaDe = lerFiltroEstaca('filtro-estaca-de');
+  const estacaAte = lerFiltroEstaca('filtro-estaca-ate');
+  const filtrarEstaca = !Number.isNaN(estacaDe) || !Number.isNaN(estacaAte);
   const encarregado = document.getElementById('filtro-encarregado').value;
   const atividade = document.getElementById('filtro-atividade').value;
   const servico = document.getElementById('filtro-servico').value;
 
   const registrosFiltrados = cacheRegistros.filter(r =>
     (!trecho || r.trecho === trecho)
-    && (!encarregado || r.usuario_nome === encarregado)
+    && (!km || registroCobreKm(r, km))
+    && (!filtrarEstaca || registroCobreEstacas(r, estacaDe, estacaAte))
+    && (!encarregado || r.encarregado_chave === encarregado)
     && (!atividade || r.atividade === atividade)
     && (!servico || r.servico_notavel === servico));
 
+  document.getElementById('botao-limpar-filtros').hidden =
+    IDS_FILTROS_LOCAIS.every(id => !document.getElementById(id).value.trim());
+
   const chavesRegistros = new Set(registrosFiltrados.map(r => `${r.dispositivo_id}|${r.id_local}`));
   const fotosFiltradas = cacheFotos.filter(f => chavesRegistros.has(`${f.dispositivo_id}|${f.registro_id_local}`));
+  recorteAtual = { registros: registrosFiltrados, fotos: fotosFiltradas };
 
   atualizarKpis(registrosFiltrados, fotosFiltradas);
   atualizarGrafico(registrosFiltrados);
   atualizarTabela(registrosFiltrados);
   atualizarFotos(fotosFiltradas, registrosFiltrados);
+  atualizarMapaAtividades(registrosFiltrados);
 }
 
 function atualizarKpis(registros, fotos) {
   document.getElementById('kpi-registros').textContent = registros.length;
   document.getElementById('kpi-fotos').textContent = fotos.length;
-  const encarregados = new Set(registros.map(r => r.usuario_matricula || r.usuario_nome));
+  const encarregados = new Set(registros.map(r => r.encarregado_chave));
   document.getElementById('kpi-encarregados').textContent = encarregados.size;
 }
 
-/// Valor atual de uma variável CSS de tema. O gráfico é desenhado em canvas:
-/// as cores dele não vêm do CSS sozinhas, precisam ser lidas e passadas.
 function corDoTema(nome) {
   return getComputedStyle(document.documentElement).getPropertyValue(nome).trim();
 }
 
-/// Guardado para o gráfico poder ser redesenhado na troca de tema sem uma
-/// nova passada de filtro.
 let registrosNoGrafico = [];
 
 function redesenharGrafico() {
@@ -113,11 +182,16 @@ function redesenharGrafico() {
 function atualizarGrafico(registros) {
   registrosNoGrafico = registros;
   const dias = [];
-  const hoje = new Date();
-  for (let i = 13; i >= 0; i--) {
-    const d = new Date(hoje); d.setDate(d.getDate() - i);
+  const d = inicioDoDia(periodoCarregado.inicio);
+  const ultimo = inicioDoDia(periodoCarregado.fim);
+  while (d <= ultimo) {
     dias.push(chaveDia(d));
+    d.setDate(d.getDate() + 1);
   }
+  const fmt = x => x.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  document.getElementById('periodo-grafico').textContent = dias.length === 1
+    ? fmt(periodoCarregado.inicio)
+    : `${fmt(periodoCarregado.inicio)} a ${fmt(periodoCarregado.fim)} · ${dias.length} dias`;
   const contagem = Object.fromEntries(dias.map(d => [d, 0]));
   for (const r of registros) {
     const k = chaveDia(new Date(r.criado_em));
@@ -176,41 +250,28 @@ function atualizarTabela(registros) {
   }
 
   corpo.innerHTML = registros.map(r => {
-    const porTerceiro = (r.registrado_por_nome || '').trim();
-    const estaca = r.estaca_inicial === r.estaca_final
-      ? r.estaca_inicial
-      : `${r.estaca_inicial} a ${r.estaca_final}`;
-    // Serviço que atravessa o KM guarda o KM do fim em km_final; vazio (ou
-    // igual ao do início) é o caso comum, e aí mostra um KM só.
-    const kmFinal = (r.km_final || '').trim();
-    const km = kmFinal && kmFinal !== r.km ? `${r.km} a ${kmFinal}` : r.km;
+    const porTerceiro = capitalizarNome(r.registrado_por_nome);
+    const km = descreverKm(r);
+    const estaca = descreverEstaca(r);
     return `
       <tr>
-        <td>${formatarDataHora(r.criado_em)}</td>
-        <td>${escaparHtml(r.usuario_nome)}${porTerceiro ? `<span class="tag-terceiro" title="Lançado por ${escaparHtml(porTerceiro)}">por terceiro</span>` : ''}</td>
-        <td>${escaparHtml(r.trecho)}${r.via ? ' · ' + escaparHtml(r.via) : ''}</td>
-        <td>KM ${escaparHtml(km)} · ${escaparHtml(estaca)}</td>
-        <td>${escaparHtml(descreverServico(r))}</td>
-        <td>${escaparHtml(descreverMedicao(r))}</td>
+        <td class="col-data">${formatarDataHora(r.criado_em)}</td>
+        <td class="col-encarregado">${escaparHtml(r.encarregado)}${porTerceiro ? `<span class="tag-terceiro" title="Lançado por ${escaparHtml(porTerceiro)}">por terceiro</span>` : ''}</td>
+        <td class="col-trecho" data-rotulo="Trecho">${escaparHtml(r.trecho)}${r.via ? ' · ' + escaparHtml(r.via) : ''}</td>
+        <td class="col-km" data-rotulo="Local">KM ${escaparHtml(km)} · ${escaparHtml(estaca)}</td>
+        <td class="col-servico" data-rotulo="Serviço">${escaparHtml(descreverServico(r))}</td>
+        <td class="col-medicao" data-rotulo="Medição">${escaparHtml(descreverMedicao(r))}</td>
       </tr>`;
   }).join('');
 
   ajustarAlturaAtividades();
 }
 
-/// Recolhe a lista de atividades às primeiras [LINHAS_VISIVEIS] linhas, ou
-/// solta a altura quando expandida.
-///
-/// A altura é MEDIDA, não calculada: linha com estaca longa ou nome grande
-/// quebra em duas, e um valor fixo cortaria a décima linha ao meio numa
-/// listagem e sobraria espaço em branco na outra.
 function ajustarAlturaAtividades() {
   const wrap = document.getElementById('wrap-atividades');
   const botao = document.getElementById('botao-expandir-atividades');
   const linhas = wrap.querySelectorAll('tbody tr');
 
-  // Medir com a altura solta; se sobrasse o limite anterior, a régua seria a
-  // janela rolável e não o conteúdo.
   wrap.classList.remove('recolhida');
   wrap.style.maxHeight = '';
 
@@ -236,70 +297,164 @@ function ajustarAlturaAtividades() {
 function alternarAtividades() {
   atividadesExpandidas = !atividadesExpandidas;
   ajustarAlturaAtividades();
-  // Ao recolher, a página pode ficar rolada num ponto que já não existe.
   if (!atividadesExpandidas) {
     document.getElementById('wrap-atividades')
         .scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 }
 
-// Fotos: o bucket é privado, então cada exibição exige uma URL assinada —
-// geradas em lote (uma chamada para todas, não uma por foto).
-async function atualizarFotos(fotos, registros) {
-  const grade = document.getElementById('grade-fotos');
-  document.getElementById('contagem-fotos').textContent = `${fotos.length} foto(s)`;
+const FOTOS_POR_PAGINA = 48;
 
+let galeria = { itens: [], mostrados: 0, urls: new Map(), ultimoDia: null, fotosPorDia: new Map() };
+
+let indiceLightbox = -1;
+
+function atualizarFotos(fotos, registros) {
+  const porChave = new Map(registros.map(r => [`${r.dispositivo_id}|${r.id_local}`, r]));
+  const itens = fotos.map(f => ({ foto: f, registro: porChave.get(`${f.dispositivo_id}|${f.registro_id_local}`) }));
+  const fotosPorDia = new Map();
+  for (const { foto } of itens) {
+    const dia = chaveDia(foto.criado_em);
+    fotosPorDia.set(dia, (fotosPorDia.get(dia) || 0) + 1);
+  }
+  galeria = { itens, mostrados: 0, urls: new Map(), ultimoDia: null, fotosPorDia };
+  fecharLightbox();
+
+  document.getElementById('contagem-fotos').textContent = `${fotos.length} foto(s)`;
+  const grade = document.getElementById('grade-fotos');
   if (fotos.length === 0) {
     grade.innerHTML = '<div class="vazio">Nenhuma foto no período/filtro selecionado.</div>';
+    atualizarBotaoMaisFotos();
     return;
   }
-
-  grade.innerHTML = '<div class="carregando">Carregando fotos…</div>';
-
-  const porChave = new Map(registros.map(r => [`${r.dispositivo_id}|${r.id_local}`, r]));
-  // Mais recentes primeiro, e um teto para não gerar milhares de URLs assinadas
-  // de uma vez só quando o período for muito largo.
-  const fotosParaMostrar = fotos.slice(0, 200);
-
-  const caminhos = fotosParaMostrar.map(f => f.caminho_storage);
-  const { data: assinadas, error } = await sb.storage.from(BUCKET_FOTOS).createSignedUrls(caminhos, 3600);
-  if (error) {
-    grade.innerHTML = `<div class="vazio">Falha ao gerar links das fotos: ${escaparHtml(error.message)}</div>`;
-    return;
-  }
-  const urlPorCaminho = new Map(assinadas.map(a => [a.path, a.signedUrl]));
-
-  grade.innerHTML = fotosParaMostrar.map(f => {
-    const url = urlPorCaminho.get(f.caminho_storage);
-    const registro = porChave.get(`${f.dispositivo_id}|${f.registro_id_local}`);
-    const legendaServico = registro ? descreverServico(registro) : '';
-    const legendaLocal = registro ? `${escaparHtml(registro.trecho)} · Estaca ${escaparHtml(registro.estaca_inicial)}` : '';
-    const nome = registro ? escaparHtml(registro.usuario_nome) : '';
-    return `
-      <div class="foto-item" data-url="${url || ''}">
-        <img src="${url || ''}" loading="lazy" alt="Foto do registro">
-        <div class="legenda">
-          <b>${nome}</b>
-          ${escaparHtml(legendaServico)}<br>${legendaLocal}<br>${formatarDataHora(f.criado_em)}
-        </div>
-      </div>`;
-  }).join('');
-
-  if (fotos.length > fotosParaMostrar.length) {
-    grade.innerHTML += `<div class="vazio" style="grid-column:1/-1">Mostrando as ${fotosParaMostrar.length} mais recentes de ${fotos.length}. Filtre por trecho ou encarregado para ver as demais.</div>`;
-  }
-
-  grade.querySelectorAll('.foto-item').forEach(el => {
-    el.addEventListener('click', () => abrirLightbox(el.getAttribute('data-url')));
-  });
+  grade.innerHTML = '';
+  carregarMaisFotos();
 }
 
-function abrirLightbox(url) {
-  if (!url) return;
-  document.getElementById('lightbox-img').src = url;
+async function carregarMaisFotos() {
+  const g = galeria;
+  const grade = document.getElementById('grade-fotos');
+  const botao = document.getElementById('botao-mais-fotos');
+  const lote = g.itens.slice(g.mostrados, g.mostrados + FOTOS_POR_PAGINA);
+  if (lote.length === 0 || g.carregando) return;
+
+  g.carregando = true;
+  botao.disabled = true;
+  botao.textContent = 'Carregando fotos…';
+  const esqueletos = [];
+  for (let i = 0; i < Math.min(lote.length, 12); i++) {
+    const el = document.createElement('div');
+    el.className = 'foto-esqueleto';
+    grade.appendChild(el);
+    esqueletos.push(el);
+  }
+
+  const { data: assinadas, error } = await sb.storage
+    .from(BUCKET_FOTOS)
+    .createSignedUrls(lote.map(i => i.foto.caminho_storage), 3600);
+
+  esqueletos.forEach(el => el.remove());
+  if (g !== galeria) return;
+  g.carregando = false;
+  botao.disabled = false;
+
+  if (error) {
+    grade.insertAdjacentHTML('beforeend',
+      `<div class="vazio grade-linha-toda">Falha ao gerar links das fotos: ${escaparHtml(error.message)}</div>`);
+    atualizarBotaoMaisFotos();
+    return;
+  }
+  for (const a of assinadas) if (a.signedUrl) g.urls.set(a.path, a.signedUrl);
+
+  const inicio = g.mostrados;
+  g.mostrados += lote.length;
+  grade.insertAdjacentHTML('beforeend', lote.map((item, i) => htmlFoto(item, inicio + i)).join(''));
+  atualizarBotaoMaisFotos();
+}
+
+function atualizarBotaoMaisFotos() {
+  const botao = document.getElementById('botao-mais-fotos');
+  const restantes = galeria.itens.length - galeria.mostrados;
+  botao.hidden = restantes <= 0;
+  botao.textContent = `Carregar mais ${Math.min(restantes, FOTOS_POR_PAGINA)} fotos (${restantes} restantes)`;
+}
+
+function htmlFoto({ foto, registro }, indice) {
+  let cabecalho = '';
+  const dia = chaveDia(foto.criado_em);
+  if (dia !== galeria.ultimoDia) {
+    galeria.ultimoDia = dia;
+    const n = galeria.fotosPorDia.get(dia);
+    cabecalho = `<div class="dia-fotos grade-linha-toda">${formatarDiaExtenso(foto.criado_em)}
+      <span>${n} foto${n === 1 ? '' : 's'}</span></div>`;
+  }
+
+  const url = galeria.urls.get(foto.caminho_storage) || '';
+  const nome = registro ? registro.encarregado : '';
+  const servico = registro ? descreverServico(registro) : '';
+  const local = registro
+    ? `${registro.trecho} · KM ${descreverKm(registro)} · Est. ${descreverEstaca(registro)}`
+    : '';
+  return `${cabecalho}
+    <figure class="foto-item" data-indice="${indice}" tabindex="0" title="${escaparHtml(servico)}">
+      <div class="foto-img">
+        <img src="${escaparHtml(url)}" loading="lazy" alt="Foto: ${escaparHtml(servico || 'registro')}"
+             onload="this.classList.add('ok')" onerror="this.parentNode.classList.add('falhou')">
+        <span class="foto-hora">${formatarHora(foto.criado_em)}</span>
+      </div>
+      <figcaption>
+        <b>${escaparHtml(nome)}</b>
+        <span class="foto-servico">${escaparHtml(servico)}</span>
+        <span class="foto-local">${escaparHtml(local)}</span>
+      </figcaption>
+    </figure>`;
+}
+
+async function abrirLightbox(indice) {
+  if (indice >= galeria.mostrados && indice < galeria.itens.length) {
+    await carregarMaisFotos();
+  }
+  const item = galeria.itens[indice];
+  if (!item || indice >= galeria.mostrados) return;
+  indiceLightbox = indice;
+
+  const { foto, registro: r } = item;
+  const url = galeria.urls.get(foto.caminho_storage) || '';
+  const img = document.getElementById('lightbox-img');
+  img.src = url;
+  img.alt = r ? descreverServico(r) : 'Foto do registro';
+
+  const linhas = [];
+  if (r) {
+    linhas.push(`<b>${escaparHtml(r.encarregado)}</b>`);
+    linhas.push(escaparHtml([r.atividade, descreverServico(r), descreverMedicao(r)].filter(Boolean).join(' · ')));
+    linhas.push(escaparHtml(`${r.trecho}${r.via ? ' · ' + r.via : ''} · KM ${descreverKm(r)} · Estaca ${descreverEstaca(r)}`));
+  }
+  const extras = [formatarDataHora(foto.criado_em)];
+  if (foto.latitude != null && foto.longitude != null) {
+    extras.push(`<a href="https://www.google.com/maps?q=${Number(foto.latitude)},${Number(foto.longitude)}" target="_blank" rel="noopener">ver no mapa</a>`);
+  }
+  if (url) extras.push(`<a href="${escaparHtml(url)}" target="_blank" rel="noopener">abrir original</a>`);
+  linhas.push(`<span class="lb-extras">${extras.join(' · ')}</span>`);
+
+  document.getElementById('lightbox-legenda').innerHTML =
+    `<span class="lb-contador">${indice + 1} / ${galeria.itens.length}</span>` + linhas.join('<br>');
+  document.getElementById('lightbox-anterior').disabled = indice <= 0;
+  document.getElementById('lightbox-proxima').disabled = indice >= galeria.itens.length - 1;
   document.getElementById('lightbox').style.display = 'flex';
 }
 
+function navegarLightbox(passo) {
+  if (indiceLightbox < 0) return;
+  const destino = indiceLightbox + passo;
+  if (destino >= 0 && destino < galeria.itens.length) abrirLightbox(destino);
+}
+
 function fecharLightbox() {
+  indiceLightbox = -1;
   document.getElementById('lightbox').style.display = 'none';
+}
+
+function lightboxAberto() {
+  return indiceLightbox >= 0;
 }

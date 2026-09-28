@@ -1,20 +1,30 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="verificando">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Painel de Gestão — RDO cbm</title>
+<title>Painel RDO cbm</title>
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="img/favicon-192.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="css/estilo.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 
-<!-- ── Tela de login ────────────────────────────────────────────────── -->
+<div id="tela-carregando" aria-live="polite">
+  <img class="logo-login" src="img/logo-barbosa-mello.webp" alt="Construtora Barbosa Mello">
+  <div class="girando" role="status" aria-label="Carregando"></div>
+</div>
+
 <div id="tela-login">
+  <img class="logo-login" src="img/logo-barbosa-mello.webp" alt="Construtora Barbosa Mello">
   <div class="caixa-login">
     <h1>Painel de Gestão</h1>
-    <p class="sub">RDO cbm — acompanhamento de atividades e fotos</p>
+    <p class="sub">Acompanhamento das atividades e fotos</p>
     <div id="erro-login"></div>
     <form id="form-login">
       <div class="campo">
@@ -28,12 +38,55 @@
       <button type="submit" class="primario" id="botao-login">Entrar</button>
     </form>
   </div>
+  <footer class="rodape rodape-login">
+    Dúvidas ou problemas para entrar? Fale com Gabriel Ferreira:
+    <a href="mailto:gabriel.ferreira@cbmsa.com.br">gabriel.ferreira@cbmsa.com.br</a>
+  </footer>
 </div>
 
-<!-- ── Dashboard ────────────────────────────────────────────────────── -->
+<div id="tela-troca-senha" class="tela-acesso" hidden>
+  <img class="logo-login" src="img/logo-barbosa-mello.webp" alt="Construtora Barbosa Mello">
+  <div class="caixa-login">
+    <h1>Defina sua nova senha</h1>
+    <p class="sub">Olá, <b id="troca-nome"></b>. Este é seu primeiro acesso: por segurança,
+      troque a senha provisória que você recebeu.</p>
+    <div id="erro-troca-senha" class="erro-acesso"></div>
+    <form id="form-troca-senha">
+      <div class="campo">
+        <label for="input-nova-senha">Nova senha</label>
+        <input type="password" id="input-nova-senha" autocomplete="new-password" minlength="8" required>
+      </div>
+      <div class="campo">
+        <label for="input-confirma-senha">Confirme a nova senha</label>
+        <input type="password" id="input-confirma-senha" autocomplete="new-password" minlength="8" required>
+      </div>
+      <ul class="regras-senha" id="regras-senha">
+        <li data-regra="tamanho">Pelo menos 8 caracteres</li>
+        <li data-regra="letra">Pelo menos uma letra</li>
+        <li data-regra="numero">Pelo menos um número</li>
+        <li data-regra="igual">As duas senhas iguais</li>
+      </ul>
+      <button type="submit" class="primario" id="botao-troca-senha">Salvar e entrar</button>
+    </form>
+    <button type="button" class="link-sair" id="botao-sair-troca">Sair</button>
+  </div>
+</div>
+
 <div id="dashboard">
   <header class="topo">
-    <h1>Painel de Gestão — RDO cbm</h1>
+    <div class="marca">
+      <img class="logo-completa" src="img/logo-barbosa-mello.webp" alt="Construtora Barbosa Mello">
+      <img class="logo-icone" src="img/icone-branco.png" alt="Barbosa Mello">
+      <h1>Painel de Gestão  RDO cbm</h1>
+    </div>
+    <nav class="menu-secoes" id="menu-secoes" aria-label="Seções do painel">
+      <a href="#secao-filtros">Filtros</a>
+      <a href="#secao-indicadores">Indicadores</a>
+      <a href="#secao-resumo">Resumo</a>
+      <a href="#secao-mapa">Mapa</a>
+      <a href="#secao-atividades">Atividades</a>
+      <a href="#secao-fotos">Fotos</a>
+    </nav>
     <div class="usuario">
       <span id="nome-usuario"></span>
       <button class="sair" id="botao-tema" title="Alternar tema claro/escuro"></button>
@@ -42,18 +95,38 @@
   </header>
 
   <main>
+    <section id="secao-filtros" class="bloco-navegavel">
+    <h2>Filtros:</h2>
+    <div class="atalhos-periodo" id="atalhos-periodo" role="group" aria-label="Período">
+      <button type="button" data-periodo="hoje">Hoje</button>
+      <button type="button" data-periodo="7dias">Últimos 7 dias</button>
+      <button type="button" data-periodo="30dias">Últimos 30 dias</button>
+      <button type="button" data-periodo="mes">Este mês</button>
+    </div>
     <div class="barra-filtros">
       <div class="campo">
-        <label for="filtro-inicio">De</label>
+        <label for="filtro-inicio">Data inicial</label>
         <input type="date" id="filtro-inicio">
       </div>
       <div class="campo">
-        <label for="filtro-fim">Até</label>
+        <label for="filtro-fim">Data final</label>
         <input type="date" id="filtro-fim">
       </div>
       <div class="campo">
         <label for="filtro-trecho">Trecho</label>
         <select id="filtro-trecho"><option value="">Todos</option></select>
+      </div>
+      <div class="campo campo-km">
+        <label for="filtro-km">KM</label>
+        <select id="filtro-km"><option value="">Todos</option></select>
+      </div>
+      <div class="campo campo-estaca">
+        <label for="filtro-estaca-de">Estaca inicial</label>
+        <select id="filtro-estaca-de"><option value="">Início</option></select>
+      </div>
+      <div class="campo campo-estaca">
+        <label for="filtro-estaca-ate">Estaca final</label>
+        <select id="filtro-estaca-ate"><option value="">Fim</option></select>
       </div>
       <div class="campo">
         <label for="filtro-encarregado">Encarregado</label>
@@ -68,19 +141,26 @@
         <select id="filtro-servico"><option value="">Todos</option></select>
       </div>
       <button class="secundario" id="botao-atualizar">Atualizar</button>
+      <button class="secundario botao-pdf" id="botao-exportar-pdf">Exportar PDF</button>
+      <button class="secundario" id="botao-limpar-filtros" hidden>Limpar filtros</button>
       <span class="status-atualizacao" id="status-atualizacao"></span>
     </div>
+    </section>
 
+    <section id="secao-indicadores" class="bloco-navegavel">
+      <h2>Indicadores KPI</h2>
     <div class="grade-kpi" id="grade-kpi">
       <div class="kpi"><div class="valor" id="kpi-registros">—</div><div class="rotulo">registros no período</div></div>
       <div class="kpi"><div class="valor" id="kpi-fotos">—</div><div class="rotulo">fotos no período</div></div>
       <div class="kpi"><div class="valor" id="kpi-encarregados">—</div><div class="rotulo">encarregados ativos</div></div>
       <div class="kpi alerta"><div class="valor" id="kpi-faltantes">—</div><div class="rotulo">sem apontamento hoje</div></div>
     </div>
+    </section>
 
+    <section id="secao-resumo" class="bloco-navegavel">
     <div class="duas-colunas">
       <div class="secao">
-        <h2>Registros por dia <span class="contagem">últimos 14 dias</span></h2>
+        <h2>Registros por dia <span class="contagem" id="periodo-grafico"></span></h2>
         <canvas id="grafico-dias"></canvas>
       </div>
       <div class="secao">
@@ -88,7 +168,39 @@
         <div id="lista-faltantes"><div class="carregando">Carregando…</div></div>
       </div>
     </div>
+    </section>
 
+    <section id="secao-mapa" class="bloco-navegavel">
+    <h2>Mapa das atividades</h2>
+    <div class="secao">
+      <h2>Onde as atividades foram feitas <span class="contagem" id="contagem-mapa"></span></h2>
+      <div class="explicacao-mapa">
+        <p>O mapa mostra a localização das atividades que estão filtradas acima (período, trecho, encarregado etc.).</p>
+        <details id="detalhes-mapa">
+        <summary>Como ler o mapa</summary>
+        <ul>
+          <li><b>Linhas coloridas:</b> cada registro é pintado sobre as estacas informadas no app. A cor indica o serviço (veja a legenda abaixo do mapa).</li>
+          <li><b>Pontos:</b> atividade em uma única estaca ou em um intervalo curto.</li>
+          <li><b>Fundo:</b> imagem de satélite com o desenho do projeto por cima (ortofoto e projeto do D2, C1, Contorno de Fundão e Contorno de Ibiraçu). De longe o desenho aparece simplificado; aproxime para ver em alta resolução.</li>
+          <li><b>Clique numa atividade</b> para ver serviço, encarregado, data, KM, estacas e medição. Use ⛶ para abrir em tela cheia.</li>
+          <li>Registros sem estaca (áreas de apoio) ou com estaca sem coordenada cadastrada não aparecem no mapa.</li>
+        </ul>
+        </details>
+      </div>
+      <button type="button" class="expandir" id="botao-mostrar-mapa" aria-expanded="false" aria-controls="conteudo-mapa">Mostrar mapa</button>
+      <div id="conteudo-mapa" hidden>
+        <div class="caixa-mapa" id="caixa-mapa">
+          <div id="mapa-atividades"></div>
+          <div class="aviso-mapa" id="aviso-mapa" hidden></div>
+          <button type="button" class="botao-tela-cheia" id="botao-tela-cheia" title="Tela cheia">⛶</button>
+        </div>
+        <div class="legenda-mapa" id="legenda-mapa"></div>
+      </div>
+    </div>
+    </section>
+
+    <section id="secao-atividades" class="bloco-navegavel">
+    <h2>Atividades</h2>
     <div class="secao">
       <h2>Atividades <span class="contagem" id="contagem-atividades"></span></h2>
       <div class="wrap-tabela" id="wrap-atividades">
@@ -110,31 +222,69 @@
       </div>
       <button class="expandir" id="botao-expandir-atividades" hidden></button>
     </div>
+    </section>
 
+    <section id="secao-fotos" class="bloco-navegavel">
+    <h2>Fotos das atividades</h2>
     <div class="secao">
       <h2>Fotos <span class="contagem" id="contagem-fotos"></span></h2>
       <div class="grade-fotos" id="grade-fotos"><div class="carregando">Carregando…</div></div>
+      <button class="expandir" id="botao-mais-fotos" hidden></button>
     </div>
+    </section>
   </main>
+
+  <footer class="rodape">
+    <span>Desenvolvido por <strong>Gabriel Ferreira</strong></span>
+    <span>Dúvidas ou sugestões:
+      <a href="mailto:gabriel.ferreira@cbmsa.com.br">gabriel.ferreira@cbmsa.com.br</a></span>
+  </footer>
 </div>
 
-<div id="lightbox">
-  <button class="fechar" id="fechar-lightbox">&times;</button>
-  <img id="lightbox-img" src="" alt="">
+<dialog id="dialogo-pdf" class="dialogo-pdf" aria-labelledby="titulo-dialogo-pdf">
+  <h2 id="titulo-dialogo-pdf">Exportar relatório em PDF</h2>
+  <p class="pdf-explicacao">O relatório segue o padrão do RDO do app e traz exatamente o que está filtrado no painel.</p>
+  <div class="pdf-resumo" id="pdf-resumo"></div>
+  <label class="pdf-opcao">
+    <input type="checkbox" id="pdf-incluir-fotos" checked>
+    Incluir fotos (<span id="pdf-qtd-fotos">0</span>)
+  </label>
+  <label class="pdf-opcao">
+    <input type="checkbox" id="pdf-incluir-mapa" checked>
+    Incluir mapa das atividades
+  </label>
+  <div class="pdf-aviso" id="pdf-aviso" hidden>Muitas fotos: o PDF pode demorar alguns minutos e ficar grande. Se possível, filtre um período menor ou um encarregado.</div>
+  <div class="pdf-progresso" id="pdf-progresso" hidden>
+    <progress id="pdf-progresso-barra" max="1"></progress>
+    <span id="pdf-progresso-texto"></span>
+  </div>
+  <div class="erro-acesso pdf-erro" id="pdf-erro" hidden></div>
+  <div class="pdf-botoes">
+    <button type="button" class="secundario" id="pdf-cancelar">Cancelar</button>
+    <button type="button" class="primario" id="pdf-gerar">Gerar PDF</button>
+  </div>
+</dialog>
+
+<div id="lightbox" role="dialog" aria-modal="true" aria-label="Foto ampliada">
+  <button class="fechar" id="fechar-lightbox" aria-label="Fechar (Esc)">&times;</button>
+  <button class="nav-foto anterior" id="lightbox-anterior" aria-label="Foto anterior (←)">&#8249;</button>
+  <figure class="lightbox-conteudo">
+    <img id="lightbox-img" src="" alt="">
+    <figcaption id="lightbox-legenda"></figcaption>
+  </figure>
+  <button class="nav-foto proxima" id="lightbox-proxima" aria-label="Próxima foto (→)">&#8250;</button>
 </div>
 
-<!--
-  Ordem importa: são scripts clássicos (sem type="module") de propósito —
-  módulos ES são bloqueados por CORS ao abrir o arquivo direto com duplo
-  clique (file://), e é assim que este painel roda no dia a dia. Cada
-  arquivo depende do anterior já ter sido carregado.
--->
 <script src="js/config.js"></script>
 <script src="js/utilidades.js"></script>
 <script src="js/dashboard.js"></script>
 <script src="js/dados.js"></script>
 <script src="js/autenticacao.js"></script>
 <script src="js/tema.js"></script>
+<script src="js/navegacao.js"></script>
+<script src="js/mapa_pdf.js"></script>
+<script src="js/mapa_painel.js"></script>
+<script src="js/relatorio_pdf.js"></script>
 <script src="js/principal.js"></script>
 </body>
 </html>
