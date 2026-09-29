@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="verificando">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Movimentações · Painel RDO cbm</title>
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="img/favicon-192.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<link rel="stylesheet" href="css/estilo.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div id="tela-carregando" aria-live="polite">
+  <img class="logo-login" src="img/logo-barbosa-mello.webp" alt="Construtora Barbosa Mello">
+  <div class="girando" role="status" aria-label="Carregando"></div>
+</div>
+
+<div id="tela-negado" class="tela-acesso" hidden>
+  <img class="logo-login" src="img/logo-barbosa-mello.webp" alt="Construtora Barbosa Mello">
+  <div class="caixa-login">
+    <h1>Acesso restrito</h1>
+    <p class="sub" id="texto-negado">Esta página é exclusiva do administrador do painel.</p>
+    <a class="primario botao-link" href="index.html">Voltar ao painel</a>
+  </div>
+</div>
+
+<div id="pagina-admin" hidden>
+  <header class="topo">
+    <div class="marca">
+      <img class="logo-completa" src="img/logo-barbosa-mello.webp" alt="Construtora Barbosa Mello">
+      <img class="logo-icone" src="img/icone-branco.png" alt="Barbosa Mello">
+      <h1>Movimentações do painel</h1>
+    </div>
+    <div class="usuario">
+      <a class="sair" href="index.html">← Painel</a>
+      <button class="sair" id="botao-tema" title="Alternar tema claro/escuro"></button>
+      <button class="sair" id="botao-sair">Sair</button>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>Período</h2>
+      <div class="atalhos-periodo" id="atalhos-mov" role="group" aria-label="Período">
+        <button type="button" data-dias="0">Hoje</button>
+        <button type="button" data-dias="6">Últimos 7 dias</button>
+        <button type="button" data-dias="29">Últimos 30 dias</button>
+      </div>
+      <div class="barra-filtros">
+        <div class="campo">
+          <label for="mov-inicio">Data inicial</label>
+          <input type="date" id="mov-inicio">
+        </div>
+        <div class="campo">
+          <label for="mov-fim">Data final</label>
+          <input type="date" id="mov-fim">
+        </div>
+        <div class="campo campo-largo">
+          <label for="mov-gestor">Gestor</label>
+          <select id="mov-gestor"><option value="">Todos</option></select>
+        </div>
+        <div class="campo campo-largo">
+          <label for="mov-evento">Movimentação</label>
+          <select id="mov-evento">
+            <option value="">Todas</option>
+            <option value="acesso">Acessos</option>
+            <option value="periodo">Mudança de período</option>
+            <option value="filtros">Filtros</option>
+            <option value="pdf">PDF exportado</option>
+            <option value="mapa">Mapa aberto</option>
+            <option value="senha_trocada">Senha trocada</option>
+            <option value="saiu">Saiu</option>
+          </select>
+        </div>
+        <button class="secundario" id="mov-atualizar">Atualizar</button>
+        <button class="secundario botao-pdf" id="mov-csv">Baixar CSV</button>
+        <span class="status-atualizacao" id="mov-status"></span>
+      </div>
+    </section>
+
+    <section>
+      <h2>No período</h2>
+      <div class="grade-kpi">
+        <div class="kpi"><div class="valor" id="kpi-mov-acessos">—</div><div class="rotulo">acessos</div></div>
+        <div class="kpi"><div class="valor" id="kpi-mov-gestores">—</div><div class="rotulo">gestores que usaram</div></div>
+        <div class="kpi"><div class="valor" id="kpi-mov-pdfs">—</div><div class="rotulo">PDFs exportados</div></div>
+        <div class="kpi"><div class="valor" id="kpi-mov-total">—</div><div class="rotulo">movimentações</div></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Gestores</h2>
+      <div class="secao">
+        <h2>Situação de cada gestor <span class="contagem" id="contagem-gestores"></span></h2>
+        <div class="wrap-tabela">
+          <table class="tabela-atividades tabela-admin">
+            <thead>
+              <tr>
+                <th>Gestor</th>
+                <th>Situação</th>
+                <th>Último uso</th>
+                <th>Acessos (30 dias)</th>
+                <th>Dias com uso (30 dias)</th>
+                <th>PDFs (30 dias)</th>
+                <th>Aparelhos</th>
+              </tr>
+            </thead>
+            <tbody id="corpo-gestores">
+              <tr><td colspan="7" class="carregando">Carregando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Linha do tempo</h2>
+      <div class="secao">
+        <h2>Movimentações <span class="contagem" id="contagem-mov"></span></h2>
+        <div id="linha-do-tempo"><div class="carregando">Carregando…</div></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="rodape">
+    <span>Desenvolvido por <strong>Gabriel Ferreira</strong></span>
+    <span>Página restrita ao administrador</span>
+  </footer>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/utilidades.js"></script>
+<script src="js/tema.js"></script>
+<script src="js/movimentacoes.js"></script>
+</body>
+</html>

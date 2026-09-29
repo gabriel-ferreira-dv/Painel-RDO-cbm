@@ -67,7 +67,10 @@ formTroca.addEventListener('submit', async (e) => {
 document.getElementById('botao-sair-troca').addEventListener('click', sair);
 
 document.getElementById('botao-sair').addEventListener('click', sair);
-document.getElementById('botao-atualizar').addEventListener('click', carregarTudo);
+document.getElementById('botao-atualizar').addEventListener('click', () => {
+  carregarTudo();
+  registrarUso('periodo', periodoDosCampos());
+});
 
 document.getElementById('botao-exportar-pdf').addEventListener('click', abrirDialogoPdf);
 document.getElementById('botao-tela-cheia').addEventListener('click', alternarTelaCheiaMapa);
@@ -80,7 +83,9 @@ document.getElementById('dialogo-pdf').addEventListener('cancel', () => { export
 
 document.getElementById('atalhos-periodo').addEventListener('click', (e) => {
   const botao = e.target.closest('button[data-periodo]');
-  if (botao) aplicarAtalhoPeriodo(botao.dataset.periodo);
+  if (!botao) return;
+  aplicarAtalhoPeriodo(botao.dataset.periodo);
+  registrarUso('periodo', { ...periodoDosCampos(), atalho: botao.textContent.trim() });
 });
 for (const id of ['filtro-inicio', 'filtro-fim']) {
   document.getElementById(id).addEventListener('change', marcarAtalhoPeriodo);
@@ -106,6 +111,11 @@ for (const id of ['filtro-estaca-de', 'filtro-estaca-ate', 'filtro-encarregado',
 }
 
 document.getElementById('botao-limpar-filtros').addEventListener('click', limparFiltros);
+
+for (const id of IDS_FILTROS_LOCAIS) {
+  document.getElementById(id).addEventListener('change', agendarRegistroDeFiltros);
+}
+document.getElementById('botao-limpar-filtros').addEventListener('click', agendarRegistroDeFiltros);
 
 document.getElementById('botao-tema').addEventListener('click', alternarTema);
 

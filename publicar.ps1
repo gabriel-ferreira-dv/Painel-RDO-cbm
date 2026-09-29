@@ -14,7 +14,7 @@ $dist = Join-Path $raiz 'dist'
 if (Test-Path $dist) { Remove-Item $dist -Recurse -Force }
 New-Item -ItemType Directory $dist | Out-Null
 
-foreach ($item in @('index.html', '_headers', 'css', 'js', 'img')) {
+foreach ($item in @('index.html', 'movimentacoes.html', '_headers', 'css', 'js', 'img')) {
   Copy-Item (Join-Path $raiz $item) $dist -Recurse
 }
 

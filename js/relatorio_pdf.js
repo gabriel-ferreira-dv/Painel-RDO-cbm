@@ -677,6 +677,15 @@ async function gerarRelatorioPdf() {
       }
     });
     mostrarProgressoPdf('PDF gerado.', 1);
+    const inicioPdf = chaveDia(periodoCarregado.inicio);
+    const fimPdf = chaveDia(periodoCarregado.fim);
+    registrarUso('pdf', {
+      periodo: inicioPdf === fimPdf ? dataBr(inicioPdf) : `${dataBr(inicioPdf)} a ${dataBr(fimPdf)}`,
+      registros: dados.blocos.reduce((s, b) => s + b.registros.length, 0),
+      fotos: incluirFotos,
+      mapa: incluirMapa,
+      filtros: descreverFiltrosAtivos(),
+    });
     setTimeout(() => document.getElementById('dialogo-pdf').close(), 800);
   } catch (e) {
     if (e.message !== 'CANCELADO') {

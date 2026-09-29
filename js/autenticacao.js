@@ -24,6 +24,7 @@ async function tentarLogin(email, senha) {
     await sb.auth.signOut();
     throw new Error('SEM_ACESSO');
   }
+  registrarAcesso('login');
   return { ...data.user, nomeExibicao: acesso.nome, trocarSenha: acesso.trocarSenha };
 }
 
@@ -61,6 +62,7 @@ async function concluirTrocaDeSenha(novaSenha) {
   const user = { ...usuarioTrocandoSenha, trocarSenha: false };
   usuarioTrocandoSenha = null;
   document.getElementById('tela-troca-senha').hidden = true;
+  registrarUso('senha_trocada');
   mostrarDashboard(user);
 }
 
@@ -71,6 +73,8 @@ function mensagemErroTroca(err) {
 }
 
 async function sair() {
+  await registrarUsoComLimite('saiu');
+  try { sessionStorage.removeItem('uso-acesso'); } catch {}
   await sb.auth.signOut();
   location.reload();
 }
@@ -85,6 +89,7 @@ async function restaurarSessao() {
       await sb.auth.signOut();
       return;
     }
+    registrarAcesso('sessao');
     entrarNoPainel({ ...user, nomeExibicao: acesso.nome, trocarSenha: acesso.trocarSenha });
   } catch (e) {
     console.error('Não foi possível confirmar o acesso:', e);

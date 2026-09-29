@@ -18,6 +18,7 @@ function mostrarDashboard(user) {
     user.nomeExibicao || user.email;
 
   aplicarAtalhoPeriodo('mes');
+  mostrarLinkAdmin();
 }
 
 function intervaloDoAtalho(atalho) {

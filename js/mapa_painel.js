@@ -168,6 +168,7 @@ function alternarMapaAtividades() {
   }
   ultimoRecorteMapa = null;
   desenharMapaAtividades(registrosDoMapa);
+  registrarUso('mapa');
 }
 
 async function desenharMapaAtividades(registros) {
