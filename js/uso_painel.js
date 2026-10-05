@@ -39,11 +39,18 @@ function registrarAcesso(tipo) {
   registrarUso('acesso', { tipo });
 }
 
+let ehAdminPainel = false;
+
 async function mostrarLinkAdmin() {
   try {
     const { data, error } = await sb.rpc('sou_admin_painel');
-    document.getElementById('link-admin').hidden = error || data !== true;
-  } catch {}
+    ehAdminPainel = !error && data === true;
+  } catch {
+    ehAdminPainel = false;
+  }
+  document.getElementById('link-admin').hidden = !ehAdminPainel;
+  document.getElementById('lightbox-excluir').hidden = !ehAdminPainel;
+  document.body.classList.toggle('modo-admin', ehAdminPainel);
 }
 
 function periodoDosCampos() {

@@ -72,6 +72,10 @@
             <option value="pdf">PDF exportado</option>
             <option value="mapa">Mapa aberto</option>
             <option value="senha_trocada">Senha trocada</option>
+            <option value="foto_excluida">Foto excluída</option>
+            <option value="foto_restaurada">Foto restaurada</option>
+            <option value="registro_excluido">Registro excluído</option>
+            <option value="registro_restaurado">Registro restaurado</option>
             <option value="saiu">Saiu</option>
           </select>
         </div>
@@ -113,6 +117,24 @@
             </tbody>
           </table>
         </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Registros excluídos</h2>
+      <div class="secao">
+        <h2>Lixeira de registros <span class="contagem" id="contagem-lixeira-registros"></span></h2>
+        <p class="pdf-explicacao">Registros excluídos no painel, com as fotos deles. Não aparecem para os gestores nem nos relatórios. Use Restaurar para devolvê-los.</p>
+        <div id="lixeira-registros"><div class="carregando">Carregando…</div></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Fotos excluídas</h2>
+      <div class="secao">
+        <h2>Lixeira <span class="contagem" id="contagem-lixeira"></span></h2>
+        <p class="pdf-explicacao">Fotos excluídas no painel. Elas não aparecem para os gestores nem nos relatórios. Use Restaurar para devolvê-las.</p>
+        <div id="lixeira-fotos"><div class="carregando">Carregando…</div></div>
       </div>
     </section>
 

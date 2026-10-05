@@ -51,8 +51,8 @@ async function carregarTudo() {
 
     padronizarEncarregados([...registros, ...ativos]);
 
-    cacheRegistros = registros;
-    cacheFotos = fotos;
+    cacheRegistros = registros.filter(r => r.excluido !== true);
+    cacheFotos = fotos.filter(f => f.excluida !== true);
     periodoCarregado = { inicio, fim };
 
     popularSelectsDeFiltro();

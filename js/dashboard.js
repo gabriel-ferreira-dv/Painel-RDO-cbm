@@ -51,11 +51,28 @@ function marcarAtalhoPeriodo() {
 
 function preencherSelect(id, valores, rotuloTodos) {
   const sel = document.getElementById(id);
-  const escolhido = sel.value;
   const opcoes = valores.map(v => Array.isArray(v) ? v : [v, v]);
+  if (sel.multiple) {
+    const escolhidos = new Set(valoresDoFiltro(id));
+    sel.innerHTML = opcoes.map(([v, r]) =>
+      `<option value="${escaparHtml(v)}"${escolhidos.has(v) ? ' selected' : ''}>${escaparHtml(r)}</option>`).join('');
+    return;
+  }
+  const escolhido = sel.value;
   sel.innerHTML = `<option value="">${rotuloTodos}</option>` +
     opcoes.map(([v, r]) => `<option value="${escaparHtml(v)}">${escaparHtml(r)}</option>`).join('');
   sel.value = opcoes.some(([v]) => v === escolhido) ? escolhido : '';
+}
+
+function valoresDoFiltro(id) {
+  const sel = document.getElementById(id);
+  if (sel.multiple) return [...sel.selectedOptions].map(o => o.value).filter(Boolean);
+  return sel.value ? [sel.value] : [];
+}
+
+function rotulosDoFiltro(id) {
+  const sel = document.getElementById(id);
+  return [...sel.selectedOptions].filter(o => o.value).map(o => o.text);
 }
 
 function ordenados(campo, registros = cacheRegistros) {
@@ -75,9 +92,13 @@ function encarregadosOrdenados() {
   return [...porChave].sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'));
 }
 
+function registroCobreAlgumKm(r, kms) {
+  return kms.length === 0 || kms.some(km => registroCobreKm(r, km));
+}
+
 function popularKms() {
-  const trecho = document.getElementById('filtro-trecho').value;
-  const base = trecho ? cacheRegistros.filter(r => r.trecho === trecho) : cacheRegistros;
+  const trechos = new Set(valoresDoFiltro('filtro-trecho'));
+  const base = trechos.size ? cacheRegistros.filter(r => trechos.has(r.trecho)) : cacheRegistros;
   const kms = new Set();
   for (const r of base) {
     if (r.km) kms.add(String(r.km).trim());
@@ -90,10 +111,10 @@ function popularKms() {
 }
 
 function popularEstacas() {
-  const trecho = document.getElementById('filtro-trecho').value;
-  const km = document.getElementById('filtro-km').value;
+  const trechos = new Set(valoresDoFiltro('filtro-trecho'));
+  const kms = valoresDoFiltro('filtro-km');
   const base = cacheRegistros.filter(r =>
-    (!trecho || r.trecho === trecho) && (!km || registroCobreKm(r, km)));
+    (!trechos.size || trechos.has(r.trecho)) && registroCobreAlgumKm(r, kms));
   const estacas = new Map();
   for (const r of base) {
     for (const e of [r.estaca_inicial, r.estaca_final]) {
@@ -117,40 +138,45 @@ const IDS_FILTROS_LOCAIS = [
 ];
 
 function limparFiltros() {
-  for (const id of IDS_FILTROS_LOCAIS) document.getElementById(id).value = '';
+  for (const id of IDS_FILTROS_LOCAIS) {
+    const sel = document.getElementById(id);
+    if (sel.multiple) for (const o of sel.options) o.selected = false;
+    else sel.value = '';
+  }
   popularKms();
   popularServicos();
   aplicarFiltrosLocais();
 }
 
 function popularServicos() {
-  const atividade = document.getElementById('filtro-atividade').value;
-  const base = atividade
-    ? cacheRegistros.filter(r => r.atividade === atividade)
+  const atividades = new Set(valoresDoFiltro('filtro-atividade'));
+  const base = atividades.size
+    ? cacheRegistros.filter(r => atividades.has(r.atividade))
     : cacheRegistros;
   preencherSelect('filtro-servico', ordenados('servico_notavel', base), 'Todos');
 }
 
 function aplicarFiltrosLocais() {
-  const trecho = document.getElementById('filtro-trecho').value;
-  const km = document.getElementById('filtro-km').value;
+  const trechos = new Set(valoresDoFiltro('filtro-trecho'));
+  const kms = valoresDoFiltro('filtro-km');
   const estacaDe = lerFiltroEstaca('filtro-estaca-de');
   const estacaAte = lerFiltroEstaca('filtro-estaca-ate');
   const filtrarEstaca = !Number.isNaN(estacaDe) || !Number.isNaN(estacaAte);
-  const encarregado = document.getElementById('filtro-encarregado').value;
-  const atividade = document.getElementById('filtro-atividade').value;
-  const servico = document.getElementById('filtro-servico').value;
+  const encarregados = new Set(valoresDoFiltro('filtro-encarregado'));
+  const atividades = new Set(valoresDoFiltro('filtro-atividade'));
+  const servicos = new Set(valoresDoFiltro('filtro-servico'));
 
   const registrosFiltrados = cacheRegistros.filter(r =>
-    (!trecho || r.trecho === trecho)
-    && (!km || registroCobreKm(r, km))
+    (!trechos.size || trechos.has(r.trecho))
+    && registroCobreAlgumKm(r, kms)
     && (!filtrarEstaca || registroCobreEstacas(r, estacaDe, estacaAte))
-    && (!encarregado || r.encarregado_chave === encarregado)
-    && (!atividade || r.atividade === atividade)
-    && (!servico || r.servico_notavel === servico));
+    && (!encarregados.size || encarregados.has(r.encarregado_chave))
+    && (!atividades.size || atividades.has(r.atividade))
+    && (!servicos.size || servicos.has(r.servico_notavel)));
 
   document.getElementById('botao-limpar-filtros').hidden =
-    IDS_FILTROS_LOCAIS.every(id => !document.getElementById(id).value.trim());
+    IDS_FILTROS_LOCAIS.every(id => valoresDoFiltro(id).length === 0);
+  atualizarTextosDosSeletores();
 
   const chavesRegistros = new Set(registrosFiltrados.map(r => `${r.dispositivo_id}|${r.id_local}`));
   const fotosFiltradas = cacheFotos.filter(f => chavesRegistros.has(`${f.dispositivo_id}|${f.registro_id_local}`));
@@ -245,7 +271,7 @@ function atualizarTabela(registros) {
   document.getElementById('contagem-atividades').textContent = `${registros.length} registro(s)`;
 
   if (registros.length === 0) {
-    corpo.innerHTML = '<tr><td colspan="6" class="vazio">Nenhum registro no período/filtro selecionado.</td></tr>';
+    corpo.innerHTML = '<tr><td colspan="7" class="vazio">Nenhum registro no período/filtro selecionado.</td></tr>';
     ajustarAlturaAtividades();
     return;
   }
@@ -262,6 +288,7 @@ function atualizarTabela(registros) {
         <td class="col-km" data-rotulo="Local">KM ${escaparHtml(km)} · ${escaparHtml(estaca)}</td>
         <td class="col-servico" data-rotulo="Serviço">${escaparHtml(descreverServico(r))}</td>
         <td class="col-medicao" data-rotulo="Medição">${escaparHtml(descreverMedicao(r))}</td>
+        <td class="col-acoes"><button type="button" class="botao-excluir-registro" data-excluir-registro="${r.id}" title="Excluir este registro">Excluir</button></td>
       </tr>`;
   }).join('');
 
@@ -432,8 +459,11 @@ async function abrirLightbox(indice) {
     linhas.push(escaparHtml(`${r.trecho}${r.via ? ' · ' + r.via : ''} · KM ${descreverKm(r)} · Estaca ${descreverEstaca(r)}`));
   }
   const extras = [formatarDataHora(foto.criado_em)];
-  if (foto.latitude != null && foto.longitude != null) {
-    extras.push(`<a href="https://www.google.com/maps?q=${Number(foto.latitude)},${Number(foto.longitude)}" target="_blank" rel="noopener">ver no mapa</a>`);
+  if (fotoTemLocal(item) || (r && r.estaca_inicial)) {
+    extras.push('<button type="button" class="link-lightbox" data-acao="mapa-obra">Mapa da obra</button>');
+  }
+  if (fotoTemLocal(item)) {
+    extras.push(`<a href="https://www.google.com/maps?q=${Number(foto.latitude)},${Number(foto.longitude)}" target="_blank" rel="noopener">Google Maps</a>`);
   }
   if (url) extras.push(`<a href="${escaparHtml(url)}" target="_blank" rel="noopener">abrir original</a>`);
   linhas.push(`<span class="lb-extras">${extras.join(' · ')}</span>`);

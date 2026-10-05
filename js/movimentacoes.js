@@ -6,6 +6,10 @@ const NOMES_DE_EVENTO = {
   mapa: 'Mapa',
   senha_trocada: 'Senha trocada',
   saiu: 'Saiu',
+  foto_excluida: 'Foto excluída',
+  foto_restaurada: 'Foto restaurada',
+  registro_excluido: 'Registro excluído',
+  registro_restaurado: 'Registro restaurado',
 };
 
 let movimentacoesAtuais = [];
@@ -30,6 +34,7 @@ function descreverMovimentacao(evento, det = {}) {
       return det.filtros ? det.filtros : 'Limpou os filtros';
     case 'pdf':
       return [
+        det.tipo ? `Relatório ${det.tipo}` : '',
         det.periodo,
         det.registros != null ? `${det.registros} registros` : '',
         det.fotos ? 'com fotos' : '',
@@ -42,6 +47,14 @@ function descreverMovimentacao(evento, det = {}) {
       return 'Trocou a senha provisória';
     case 'saiu':
       return 'Saiu do painel';
+    case 'foto_excluida':
+      return `Excluiu a foto nº ${det.foto_id}${det.motivo ? ` · Motivo: ${det.motivo}` : ''}`;
+    case 'foto_restaurada':
+      return `Restaurou a foto nº ${det.foto_id}`;
+    case 'registro_excluido':
+      return `Excluiu o registro nº ${det.registro_id}${det.motivo ? ` · Motivo: ${det.motivo}` : ''}`;
+    case 'registro_restaurado':
+      return `Restaurou o registro nº ${det.registro_id}`;
     default:
       return JSON.stringify(det);
   }
@@ -205,8 +218,104 @@ function baixarCsvMovimentacoes() {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
+async function carregarLixeira() {
+  const alvo = document.getElementById('lixeira-fotos');
+  const contagem = document.getElementById('contagem-lixeira');
+  const { data, error } = await sb.rpc('fotos_excluidas_painel');
+  if (error) {
+    contagem.textContent = '';
+    alvo.innerHTML = `<div class="vazio">Não foi possível carregar a lixeira: ${escaparHtml(error.message)}</div>`;
+    return;
+  }
+  contagem.textContent = data.length === 0 ? 'vazia' : `${data.length} foto(s)`;
+  if (data.length === 0) {
+    alvo.innerHTML = '<div class="vazio">Nenhuma foto excluída.</div>';
+    return;
+  }
+  let urls = new Map();
+  try {
+    const { data: assinadas } = await sb.storage.from(BUCKET_FOTOS)
+      .createSignedUrls(data.map(f => f.caminho_storage), 3600);
+    urls = new Map((assinadas || []).map(a => [a.path, a.signedUrl]));
+  } catch {}
+  alvo.innerHTML = '<div class="grade-lixeira">' + data.map(f => `
+    <div class="item-lixeira" data-id="${f.id}">
+      <img src="${escaparHtml(urls.get(f.caminho_storage) || '')}" alt="Foto excluída" loading="lazy">
+      <div class="info">
+        <b>${escaparHtml(f.servico || 'Foto')}</b>
+        <span>${escaparHtml([f.trecho, f.estacas ? `Est. ${f.estacas}` : ''].filter(Boolean).join(' · '))}</span>
+        <span>${escaparHtml(capitalizarNome(f.encarregado || ''))}${f.foto_criada_em ? ` · ${formatarDataHora(f.foto_criada_em)}` : ''}</span>
+        <span>Excluída por ${escaparHtml(f.excluida_por || '—')} em ${formatarDataHora(f.excluida_em)}</span>
+        ${f.motivo ? `<span class="motivo">"${escaparHtml(f.motivo)}"</span>` : ''}
+      </div>
+      <button type="button" data-restaurar="${f.id}">Restaurar</button>
+    </div>`).join('') + '</div>';
+}
+
+async function restaurarFoto(botao) {
+  const id = Number(botao.dataset.restaurar);
+  botao.disabled = true;
+  botao.textContent = 'Restaurando…';
+  const { error } = await sb.rpc('restaurar_foto_painel', { p_id: id });
+  if (error) {
+    botao.disabled = false;
+    botao.textContent = 'Restaurar';
+    alert('Não foi possível restaurar: ' + error.message);
+    return;
+  }
+  botao.closest('.item-lixeira').remove();
+  const restantes = document.querySelectorAll('.item-lixeira').length;
+  document.getElementById('contagem-lixeira').textContent = restantes === 0 ? 'vazia' : `${restantes} foto(s)`;
+  if (restantes === 0) document.getElementById('lixeira-fotos').innerHTML = '<div class="vazio">Nenhuma foto excluída.</div>';
+  carregarMovimentacoes();
+}
+
+async function carregarLixeiraRegistros() {
+  const alvo = document.getElementById('lixeira-registros');
+  const contagem = document.getElementById('contagem-lixeira-registros');
+  const { data, error } = await sb.rpc('registros_excluidos_painel');
+  if (error) {
+    contagem.textContent = '';
+    alvo.innerHTML = `<div class="vazio">Não foi possível carregar: ${escaparHtml(error.message)}</div>`;
+    return;
+  }
+  contagem.textContent = data.length === 0 ? 'vazia' : `${data.length} registro(s)`;
+  if (data.length === 0) {
+    alvo.innerHTML = '<div class="vazio">Nenhum registro excluído.</div>';
+    return;
+  }
+  alvo.innerHTML = '<ul class="lista-movimentacoes">' + data.map(r => `
+    <li data-registro="${r.id}">
+      <span class="mov-hora">${formatarDataHora(r.criado_em).split(',')[0]}</span>
+      <span class="mov-corpo">
+        <span class="mov-linha"><b>${escaparHtml(r.servico || '')}</b><span class="selo-evento">${escaparHtml(r.atividade || '')}</span></span>
+        <span class="mov-detalhe">${escaparHtml([capitalizarNome(r.encarregado || ''), r.trecho, r.km ? `KM ${r.km}` : '', r.estacas ? `Est. ${r.estacas}` : '', r.fotos ? `${r.fotos} foto(s)` : ''].filter(Boolean).join(' · '))}</span>
+        <span class="mov-detalhe">Excluído por ${escaparHtml(r.excluido_por || '—')} em ${formatarDataHora(r.excluido_em)}${r.motivo ? ` · "${escaparHtml(r.motivo)}"` : ''}</span>
+      </span>
+      <button type="button" class="botao-restaurar" data-restaurar-registro="${r.id}">Restaurar</button>
+    </li>`).join('') + '</ul>';
+}
+
+async function restaurarRegistro(botao) {
+  const id = Number(botao.dataset.restaurarRegistro);
+  botao.disabled = true;
+  botao.textContent = 'Restaurando…';
+  const { error } = await sb.rpc('restaurar_registro_painel', { p_id: id });
+  if (error) {
+    botao.disabled = false;
+    botao.textContent = 'Restaurar';
+    alert('Não foi possível restaurar: ' + error.message);
+    return;
+  }
+  botao.closest('li').remove();
+  const restantes = document.querySelectorAll('#lixeira-registros li').length;
+  document.getElementById('contagem-lixeira-registros').textContent = restantes === 0 ? 'vazia' : `${restantes} registro(s)`;
+  if (restantes === 0) document.getElementById('lixeira-registros').innerHTML = '<div class="vazio">Nenhum registro excluído.</div>';
+  carregarMovimentacoes();
+}
+
 async function atualizarTudoMov() {
-  await Promise.all([carregarResumoGestores(), carregarMovimentacoes()]);
+  await Promise.all([carregarResumoGestores(), carregarMovimentacoes(), carregarLixeira(), carregarLixeiraRegistros()]);
 }
 
 async function iniciarPaginaAdmin() {
@@ -247,6 +356,14 @@ for (const id of ['mov-gestor', 'mov-evento']) {
   document.getElementById(id).addEventListener('change', carregarMovimentacoes);
 }
 document.getElementById('mov-atualizar').addEventListener('click', atualizarTudoMov);
+document.getElementById('lixeira-registros').addEventListener('click', (e) => {
+  const botao = e.target.closest('button[data-restaurar-registro]');
+  if (botao) restaurarRegistro(botao);
+});
+document.getElementById('lixeira-fotos').addEventListener('click', (e) => {
+  const botao = e.target.closest('button[data-restaurar]');
+  if (botao) restaurarFoto(botao);
+});
 document.getElementById('mov-csv').addEventListener('click', baixarCsvMovimentacoes);
 document.getElementById('botao-tema').addEventListener('click', alternarTema);
 document.getElementById('botao-sair').addEventListener('click', async () => {

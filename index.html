@@ -12,6 +12,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
 </head>
 <body>
 
@@ -115,11 +116,11 @@
       </div>
       <div class="campo">
         <label for="filtro-trecho">Trecho</label>
-        <select id="filtro-trecho"><option value="">Todos</option></select>
+        <select id="filtro-trecho" multiple data-todos="Todos"></select>
       </div>
       <div class="campo campo-km">
         <label for="filtro-km">KM</label>
-        <select id="filtro-km"><option value="">Todos</option></select>
+        <select id="filtro-km" multiple data-todos="Todos"></select>
       </div>
       <div class="campo campo-estaca">
         <label for="filtro-estaca-de">Estaca inicial</label>
@@ -131,15 +132,15 @@
       </div>
       <div class="campo">
         <label for="filtro-encarregado">Encarregado</label>
-        <select id="filtro-encarregado"><option value="">Todos</option></select>
+        <select id="filtro-encarregado" multiple data-todos="Todos"></select>
       </div>
       <div class="campo">
         <label for="filtro-atividade">Atividade</label>
-        <select id="filtro-atividade"><option value="">Todas</option></select>
+        <select id="filtro-atividade" multiple data-todos="Todas"></select>
       </div>
       <div class="campo">
         <label for="filtro-servico">Serviço</label>
-        <select id="filtro-servico"><option value="">Todos</option></select>
+        <select id="filtro-servico" multiple data-todos="Todos"></select>
       </div>
       <button class="secundario" id="botao-atualizar">Atualizar</button>
       <button class="secundario botao-pdf" id="botao-exportar-pdf">Exportar PDF</button>
@@ -214,10 +215,11 @@
               <th>KM / Estaca</th>
               <th>Serviço</th>
               <th>Medição</th>
+              <th class="col-acoes"><span class="sr-only">Ações</span></th>
             </tr>
           </thead>
           <tbody id="corpo-tabela-atividades">
-            <tr><td colspan="6" class="carregando">Carregando…</td></tr>
+            <tr><td colspan="7" class="carregando">Carregando…</td></tr>
           </tbody>
         </table>
       </div>
@@ -246,13 +248,24 @@
   <h2 id="titulo-dialogo-pdf">Exportar relatório em PDF</h2>
   <p class="pdf-explicacao">O relatório segue o padrão do RDO do app e traz exatamente o que está filtrado no painel.</p>
   <div class="pdf-resumo" id="pdf-resumo"></div>
+  <fieldset class="pdf-tipos">
+    <legend>Tipo de relatório</legend>
+    <label class="pdf-tipo">
+      <input type="radio" name="pdf-tipo" value="encarregado" checked>
+      <span><b>Por encarregado</b><small>Padrão do RDO: dia a dia, com efetivo, clima e paralisações.</small></span>
+    </label>
+    <label class="pdf-tipo">
+      <input type="radio" name="pdf-tipo" value="trecho">
+      <span><b>Por trecho e atividade</b><small>Relatorio por Trecho, atividade, mapa e resumo.</small></span>
+    </label>
+  </fieldset>
   <label class="pdf-opcao">
     <input type="checkbox" id="pdf-incluir-fotos" checked>
     Incluir fotos (<span id="pdf-qtd-fotos">0</span>)
   </label>
   <label class="pdf-opcao">
     <input type="checkbox" id="pdf-incluir-mapa" checked>
-    Incluir mapa das atividades
+    <span id="pdf-rotulo-mapa">Incluir mapa das atividades</span>
   </label>
   <div class="pdf-aviso" id="pdf-aviso" hidden>Muitas fotos: o PDF pode demorar alguns minutos e ficar grande. Se possível, filtre um período menor ou um encarregado.</div>
   <div class="pdf-progresso" id="pdf-progresso" hidden>
@@ -266,8 +279,60 @@
   </div>
 </dialog>
 
+<dialog id="dialogo-excluir-foto" class="dialogo-pdf" aria-labelledby="titulo-excluir-foto">
+  <h2 id="titulo-excluir-foto">Excluir foto?</h2>
+  <p class="pdf-explicacao">A foto sai do painel e dos relatórios. Ela vai para a lixeira e pode ser restaurada na página Movimentações.</p>
+  <img class="previa-excluir" id="previa-excluir-foto" src="" alt="">
+  <div class="pdf-resumo" id="info-excluir-foto"></div>
+  <div class="campo">
+    <label for="motivo-excluir-foto">Motivo (opcional)</label>
+    <input type="text" id="motivo-excluir-foto" maxlength="200" placeholder="Ex.: foto repetida, fora do local, sem relação com o serviço">
+  </div>
+  <div class="erro-acesso pdf-erro" id="erro-excluir-foto" hidden></div>
+  <div class="pdf-botoes">
+    <button type="button" class="secundario" id="cancelar-excluir-foto">Cancelar</button>
+    <button type="button" class="primario perigo" id="confirmar-excluir-foto">Excluir foto</button>
+  </div>
+</dialog>
+
+<dialog id="dialogo-excluir-registro" class="dialogo-pdf" aria-labelledby="titulo-excluir-registro">
+  <h2 id="titulo-excluir-registro">Excluir registro?</h2>
+  <p class="pdf-explicacao">O registro sai do painel, do mapa e dos relatórios, junto com as fotos dele. Ele vai para a lixeira e pode ser restaurado na página Movimentações.</p>
+  <div class="pdf-resumo" id="info-excluir-registro"></div>
+  <div class="campo">
+    <label for="motivo-excluir-registro">Motivo (opcional)</label>
+    <input type="text" id="motivo-excluir-registro" maxlength="200" placeholder="Ex.: lançado em duplicidade, trecho errado, teste">
+  </div>
+  <div class="erro-acesso pdf-erro" id="erro-excluir-registro" hidden></div>
+  <div class="pdf-botoes">
+    <button type="button" class="secundario" id="cancelar-excluir-registro">Cancelar</button>
+    <button type="button" class="primario perigo" id="confirmar-excluir-registro">Excluir registro</button>
+  </div>
+</dialog>
+
+<dialog id="dialogo-mapa-foto" class="dialogo-mapa-foto" aria-labelledby="titulo-mapa-foto">
+  <div class="conteudo-mapa-foto">
+  <div class="cabecalho-mapa-foto">
+    <h2 id="titulo-mapa-foto">Mapa da obra</h2>
+    <div class="acoes-mapa-foto">
+      <button type="button" class="botao-expandir-mapa" id="expandir-mapa-foto" aria-pressed="false" title="Expandir para a tela inteira">⛶ Expandir</button>
+      <button type="button" class="fechar-mapa-foto" id="fechar-mapa-foto" aria-label="Fechar">&times;</button>
+    </div>
+  </div>
+  <div class="info-mapa-foto" id="info-mapa-foto"></div>
+  <div class="caixa-mapa caixa-mapa-foto">
+    <div id="mapa-foto"></div>
+    <div class="aviso-mapa" id="aviso-mapa-foto" hidden></div>
+  </div>
+  <div class="legenda-mapa" id="legenda-mapa-foto"></div>
+  </div>
+</dialog>
+
+<div class="aviso-flutuante" id="aviso-flutuante" role="status" hidden></div>
+
 <div id="lightbox" role="dialog" aria-modal="true" aria-label="Foto ampliada">
   <button class="fechar" id="fechar-lightbox" aria-label="Fechar (Esc)">&times;</button>
+  <button type="button" class="botao-excluir-foto" id="lightbox-excluir" hidden>Excluir foto</button>
   <button class="nav-foto anterior" id="lightbox-anterior" aria-label="Foto anterior (←)">&#8249;</button>
   <figure class="lightbox-conteudo">
     <img id="lightbox-img" src="" alt="">
@@ -279,6 +344,7 @@
 <script src="js/config.js"></script>
 <script src="js/utilidades.js"></script>
 <script src="js/uso_painel.js"></script>
+<script src="js/seletor_multiplo.js"></script>
 <script src="js/dashboard.js"></script>
 <script src="js/dados.js"></script>
 <script src="js/autenticacao.js"></script>
@@ -286,7 +352,10 @@
 <script src="js/navegacao.js"></script>
 <script src="js/mapa_pdf.js"></script>
 <script src="js/mapa_painel.js"></script>
+<script src="js/mapa_foto.js"></script>
 <script src="js/relatorio_pdf.js"></script>
+<script src="js/relatorio_trecho.js"></script>
+<script src="js/excluir_foto.js"></script>
 <script src="js/principal.js"></script>
 </body>
 </html>

@@ -75,10 +75,33 @@ document.getElementById('botao-atualizar').addEventListener('click', () => {
 document.getElementById('botao-exportar-pdf').addEventListener('click', abrirDialogoPdf);
 document.getElementById('botao-tela-cheia').addEventListener('click', alternarTelaCheiaMapa);
 document.getElementById('botao-mostrar-mapa').addEventListener('click', alternarMapaAtividades);
+document.getElementById('lightbox-excluir').addEventListener('click', abrirExclusaoDaFotoAtual);
+document.getElementById('lightbox-legenda').addEventListener('click', (e) => {
+  if (e.target.closest('[data-acao="mapa-obra"]')) abrirMapaDaObra();
+});
+document.getElementById('fechar-mapa-foto').addEventListener('click', fecharMapaDaObra);
+document.getElementById('expandir-mapa-foto').addEventListener('click', alternarMapaDaObraExpandido);
+document.getElementById('dialogo-mapa-foto').addEventListener('close', () => definirMapaDaObraExpandido(false));
+document.getElementById('dialogo-mapa-foto').addEventListener('click', (e) => {
+  if (e.target.id === 'dialogo-mapa-foto') fecharMapaDaObra();
+});
+document.getElementById('confirmar-excluir-foto').addEventListener('click', confirmarExclusaoDeFoto);
+document.getElementById('cancelar-excluir-foto').addEventListener('click', () =>
+  document.getElementById('dialogo-excluir-foto').close());
+document.getElementById('corpo-tabela-atividades').addEventListener('click', (e) => {
+  const botao = e.target.closest('button[data-excluir-registro]');
+  if (botao) abrirExclusaoDeRegistro(Number(botao.dataset.excluirRegistro));
+});
+document.getElementById('confirmar-excluir-registro').addEventListener('click', confirmarExclusaoDeRegistro);
+document.getElementById('cancelar-excluir-registro').addEventListener('click', () =>
+  document.getElementById('dialogo-excluir-registro').close());
 document.getElementById('detalhes-mapa').open = window.matchMedia('(min-width: 701px)').matches;
 document.getElementById('pdf-gerar').addEventListener('click', gerarRelatorioPdf);
 document.getElementById('pdf-cancelar').addEventListener('click', cancelarRelatorioPdf);
 document.getElementById('pdf-incluir-fotos').addEventListener('change', atualizarAvisoPdf);
+for (const radio of document.querySelectorAll('input[name="pdf-tipo"]')) {
+  radio.addEventListener('change', atualizarOpcoesDoTipoPdf);
+}
 document.getElementById('dialogo-pdf').addEventListener('cancel', () => { exportacaoPdf.cancelada = true; });
 
 document.getElementById('atalhos-periodo').addEventListener('click', (e) => {
@@ -141,7 +164,7 @@ lightbox.addEventListener('click', (e) => {
   if (e.target === lightbox || e.target.classList.contains('lightbox-conteudo')) fecharLightbox();
 });
 document.addEventListener('keydown', (e) => {
-  if (!lightboxAberto()) return;
+  if (!lightboxAberto() || document.querySelector('dialog[open]')) return;
   if (e.key === 'Escape') fecharLightbox();
   else if (e.key === 'ArrowLeft') navegarLightbox(-1);
   else if (e.key === 'ArrowRight') navegarLightbox(1);
@@ -155,6 +178,10 @@ lightbox.addEventListener('touchend', (e) => {
   toqueX = null;
   if (Math.abs(dx) > 50) navegarLightbox(dx < 0 ? 1 : -1);
 });
+
+for (const id of ['filtro-trecho', 'filtro-km', 'filtro-encarregado', 'filtro-atividade', 'filtro-servico']) {
+  criarSeletorMultiplo(document.getElementById(id));
+}
 
 iniciarMenuSecoes();
 aplicarTema(temaInicial());

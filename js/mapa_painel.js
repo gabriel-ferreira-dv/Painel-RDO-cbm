@@ -9,16 +9,21 @@ const ZOOM_DETALHE_PROJETO = 17;
 const pecasEmCache = new Map();
 
 const CamadaDoProjeto = typeof L === 'undefined' ? null : L.Layer.extend({
+  initialize(opcoes) {
+    L.setOptions(this, opcoes);
+  },
+
   onAdd(map) {
     this._map = map;
+    this._avisar = this.options.aoAvisar || mostrarAvisoMapa;
     this._canvas = L.DomUtil.create('canvas', 'camada-projeto leaflet-zoom-hide');
     map.getPane('projeto').appendChild(this._canvas);
-    map.on('moveend resize', this._redesenhar, this);
+    map.on('moveend resize rotateend', this._redesenhar, this);
     this._redesenhar();
   },
 
   onRemove(map) {
-    map.off('moveend resize', this._redesenhar, this);
+    map.off('moveend resize rotateend', this._redesenhar, this);
     this._canvas.remove();
   },
 
@@ -26,29 +31,38 @@ const CamadaDoProjeto = typeof L === 'undefined' ? null : L.Layer.extend({
     const map = this._map;
     const geracao = (this._geracao = (this._geracao || 0) + 1);
     const tamanho = map.getSize();
-    const dpr = window.devicePixelRatio || 1;
+    const gira = !!map._rotatePane;
+    const lado = Math.ceil(Math.hypot(tamanho.x, tamanho.y));
+    const largura = gira ? lado : tamanho.x;
+    const altura = gira ? lado : tamanho.y;
+    const origem = gira
+      ? map.containerPointToLayerPoint(tamanho.divideBy(2)).subtract([largura / 2, altura / 2]).round()
+      : map.containerPointToLayerPoint([0, 0]);
+    const dpr = Math.min(window.devicePixelRatio || 1, gira ? 1.5 : 2);
     const canvas = this._canvas;
-    canvas.width = tamanho.x * dpr;
-    canvas.height = tamanho.y * dpr;
-    canvas.style.width = `${tamanho.x}px`;
-    canvas.style.height = `${tamanho.y}px`;
-    L.DomUtil.setPosition(canvas, map.containerPointToLayerPoint([0, 0]));
+    canvas.width = Math.round(largura * dpr);
+    canvas.height = Math.round(altura * dpr);
+    canvas.style.width = `${largura}px`;
+    canvas.style.height = `${altura}px`;
+    L.DomUtil.setPosition(canvas, origem);
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    mostrarAvisoMapa('');
+    this._avisar('');
 
     const zoom = map.getZoom();
     if (zoom < VISAO_GERAL_ZOOM_MINIMO) {
-      if (camadaAtividades && camadaAtividades.getLayers().length > 0) {
-        mostrarAvisoMapa('Aproxime o mapa para ver o desenho do projeto');
+      if (this.options.avisarDeLonge !== false && camadaAtividades && camadaAtividades.getLayers().length > 0) {
+        this._avisar('Aproxime o mapa para ver o desenho do projeto');
       }
       return;
     }
-    const b = map.getBounds();
-    const area = { sul: b.getSouth(), norte: b.getNorth(), oeste: b.getWest(), leste: b.getEast() };
+    const cantos = [[0, 0], [largura, 0], [0, altura], [largura, altura]]
+      .map(([x, y]) => map.layerPointToLatLng(origem.add([x, y])))
+      .map(ll => ({ lat: ll.lat, lng: ll.lng }));
+    const area = envelope(cantos);
     const defs = mapasNaArea(area);
     if (defs.length === 0) return;
-    const pontoNaTela = (p) => map.latLngToContainerPoint([p.lat, p.lng]);
+    const pontoNaTela = (p) => map.latLngToLayerPoint([p.lat, p.lng]).subtract(origem);
     const visoes = new Map();
     const pecas = zoom >= ZOOM_DETALHE_PROJETO ? pecasDoProjetoNaArea(area) : [];
     const comDetalhe = pecas.length > 0 && pecas.length <= MAPA_MAX_PECAS;
@@ -66,9 +80,9 @@ const CamadaDoProjeto = typeof L === 'undefined' ? null : L.Layer.extend({
       for (const p of pecas) {
         const img = pecasEmCache.get(chavePeca(p));
         if (!img) continue;
-        const t = map.latLngToContainerPoint([p.topo.lat, p.topo.lng]);
-        const be = map.latLngToContainerPoint([p.baseEsq.lat, p.baseEsq.lng]);
-        const bd = map.latLngToContainerPoint([p.baseDir.lat, p.baseDir.lng]);
+        const t = pontoNaTela(p.topo);
+        const be = pontoNaTela(p.baseEsq);
+        const bd = pontoNaTela(p.baseDir);
         ctx.setTransform(
           dpr * (bd.x - be.x) / img.width, dpr * (bd.y - be.y) / img.width,
           dpr * (be.x - t.x) / img.height, dpr * (be.y - t.y) / img.height,
@@ -88,7 +102,7 @@ const CamadaDoProjeto = typeof L === 'undefined' ? null : L.Layer.extend({
     const faltando = pecas.filter(p => !pecasEmCache.has(chavePeca(p)));
     if (faltando.length === 0) return;
     if (pecasEmCache.size + faltando.length > 800) pecasEmCache.clear();
-    mostrarAvisoMapa(`Carregando o detalhe do projeto (${faltando.length} partes)…`);
+    this._avisar(`Carregando o detalhe do projeto (${faltando.length} partes)…`);
     for (let i = 0; i < faltando.length; i += 6) {
       if (geracao !== this._geracao) return;
       await Promise.all(faltando.slice(i, i + 6).map(async (p) => {
@@ -102,7 +116,7 @@ const CamadaDoProjeto = typeof L === 'undefined' ? null : L.Layer.extend({
       }));
       desenhar();
     }
-    if (geracao === this._geracao) mostrarAvisoMapa('');
+    if (geracao === this._geracao) this._avisar('');
   },
 });
 
@@ -116,11 +130,53 @@ function mostrarAvisoMapa(texto) {
   el.hidden = !texto;
 }
 
+const OPCOES_DE_GIRO = {
+  rotate: true,
+  bearing: 0,
+  touchRotate: true,
+  shiftKeyRotate: true,
+  rotateControl: { closeOnZeroBearing: false, position: 'topleft' },
+};
+
+function criarPaneDoProjeto(map) {
+  map.createPane('projeto', map._rotatePane || undefined).style.zIndex = 350;
+}
+
+const ControleDeGiro = typeof L === 'undefined' ? null : L.Control.extend({
+  options: { position: 'topleft' },
+  onAdd(map) {
+    const caixa = L.DomUtil.create('div', 'leaflet-bar controle-giro');
+    const botao = (texto, titulo, graus) => {
+      const b = L.DomUtil.create('a', '', caixa);
+      b.href = '#';
+      b.role = 'button';
+      b.title = titulo;
+      b.setAttribute('aria-label', titulo);
+      b.textContent = texto;
+      L.DomEvent.on(b, 'click', (e) => {
+        L.DomEvent.preventDefault(e);
+        L.DomEvent.stopPropagation(e);
+        map.setBearing(graus === 0 ? 0 : (map.getBearing() + graus + 360) % 360);
+      });
+    };
+    botao('↺', 'Girar para a esquerda (15°)', -15);
+    botao('↻', 'Girar para a direita (15°)', 15);
+    botao('N', 'Voltar o norte para cima', 0);
+    L.DomEvent.disableClickPropagation(caixa);
+    return caixa;
+  },
+});
+
+function adicionarControleDeGiro(map) {
+  if (typeof map.setBearing === 'function') new ControleDeGiro().addTo(map);
+}
+
 function criarMapaPainel() {
-  mapaPainel = L.map('mapa-atividades', { zoomControl: true, maxZoom: 20, preferCanvas: false });
-  mapaPainel.createPane('projeto').style.zIndex = 350;
+  mapaPainel = L.map('mapa-atividades', { zoomControl: true, maxZoom: 20, preferCanvas: false, ...OPCOES_DE_GIRO });
+  criarPaneDoProjeto(mapaPainel);
+  adicionarControleDeGiro(mapaPainel);
   L.tileLayer(`${URL_SATELITE}/{z}/{y}/{x}`, {
-    maxZoom: 20, maxNativeZoom: 19, attribution: 'Imagem de satélite: Esri World Imagery',
+    maxZoom: 20, maxNativeZoom: 18, attribution: 'Imagem de satélite: Esri World Imagery',
   }).addTo(mapaPainel);
   new CamadaDoProjeto().addTo(mapaPainel);
   camadaAtividades = L.featureGroup().addTo(mapaPainel);

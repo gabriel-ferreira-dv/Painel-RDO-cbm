@@ -273,15 +273,16 @@ function descreverFiltrosAtivos() {
     'filtro-atividade': 'Atividade', 'filtro-servico': 'Serviço',
   };
   for (const [id, rotulo] of Object.entries(rotulos)) {
-    const sel = document.getElementById(id);
-    if (sel && sel.value) partes.push(`${rotulo}: ${sel.options[sel.selectedIndex].text}`);
+    if (!document.getElementById(id)) continue;
+    const textos = rotulosDoFiltro(id);
+    if (textos.length > 0) partes.push(`${rotulo}: ${textos.join(', ')}`);
   }
   return partes.join('  ·  ');
 }
 
 async function montarBlocosDoRelatorio(registros, fotos, incluirFotos, aoProgredir) {
   const dias = diasDoPeriodo(periodoCarregado.inicio, periodoCarregado.fim);
-  const trechoFiltro = document.getElementById('filtro-trecho').value;
+  const trechosFiltro = new Set(valoresDoFiltro('filtro-trecho'));
 
   const chavePorMatricula = new Map();
   const nomePorChave = new Map();
@@ -299,7 +300,7 @@ async function montarBlocosDoRelatorio(registros, fotos, incluirFotos, aoProgred
   ]);
   const efetivo = await buscarEfetivo(matriculas, dias, aoProgredir);
   const paralisacoes = paralisacoesBrutas.filter(p =>
-    !trechoFiltro || !p.trecho || p.trecho === trechoFiltro);
+    !trechosFiltro.size || !p.trecho || trechosFiltro.has(p.trecho));
   const fotosParalisacao = incluirFotos ? await buscarFotosDeParalisacoes(paralisacoes) : [];
 
   const blocos = new Map();
@@ -365,21 +366,22 @@ async function montarBlocosDoRelatorio(registros, fotos, incluirFotos, aoProgred
       p.fim ? s + Math.round((new Date(p.fim) - new Date(p.inicio)) / 60000) : s, 0);
   }
 
-  if (incluirFotos) {
-    const todas = lista.flatMap(b => b.fotos);
-    let feitas = 0;
-    const simultaneas = 6;
-    for (let i = 0; i < todas.length; i += simultaneas) {
-      if (exportacaoPdf.cancelada) throw new Error('CANCELADO');
-      const lote = todas.slice(i, i + simultaneas);
-      const imagens = await Promise.all(lote.map(f => baixarFotoParaPdf(f.caminho)));
-      lote.forEach((f, j) => { f.imagem = imagens[j]; });
-      feitas += lote.length;
-      aoProgredir(`Baixando fotos ${feitas} de ${todas.length}…`, feitas / todas.length);
-    }
-  }
+  if (incluirFotos) await baixarImagensDasFotos(lista.flatMap(b => b.fotos), aoProgredir);
 
   return { blocos: lista, dias };
+}
+
+async function baixarImagensDasFotos(fotos, aoProgredir) {
+  let feitas = 0;
+  const simultaneas = 6;
+  for (let i = 0; i < fotos.length; i += simultaneas) {
+    if (exportacaoPdf.cancelada) throw new Error('CANCELADO');
+    const lote = fotos.slice(i, i + simultaneas);
+    const imagens = await Promise.all(lote.map(f => baixarFotoParaPdf(f.caminho)));
+    lote.forEach((f, j) => { f.imagem = imagens[j]; });
+    feitas += lote.length;
+    aoProgredir(`Baixando fotos ${feitas} de ${fotos.length}…`, feitas / fotos.length);
+  }
 }
 
 function pdfBarra(texto, { centro = false, tamanho = 12 } = {}) {
@@ -407,12 +409,14 @@ function pdfLista(titulo, itens, vazio) {
   };
 }
 
-function pdfFoto(foto, numero) {
+function pdfFoto(foto, numero, { semHora = false } = {}) {
   const legenda = {
     text: [{ text: `Foto ${numero}. `, bold: true }, { text: foto.legenda, italics: true }],
     fontSize: 9, alignment: 'center', margin: [0, 3, 0, 0],
   };
-  const hora = { text: horaMinuto(foto.criadoEm), fontSize: 8, color: '#616161', alignment: 'center' };
+  const rodape = semHora
+    ? [legenda]
+    : [legenda, { text: horaMinuto(foto.criadoEm), fontSize: 8, color: '#616161', alignment: 'center' }];
   if (!foto.imagem) {
     return {
       width: PDF_LARGURA_FOTO,
@@ -420,14 +424,14 @@ function pdfFoto(foto, numero) {
         {
           table: { widths: ['*'], body: [[{ text: 'Foto indisponível', fontSize: 9, alignment: 'center', margin: [0, 90, 0, 90] }]] },
         },
-        legenda, hora,
+        ...rodape,
       ],
     };
   }
-  return { width: PDF_LARGURA_FOTO, stack: [{ image: foto.imagem, width: PDF_LARGURA_FOTO }, legenda, hora] };
+  return { width: PDF_LARGURA_FOTO, stack: [{ image: foto.imagem, width: PDF_LARGURA_FOTO }, ...rodape] };
 }
 
-function pdfCabecalho(logo, usuario, periodo) {
+function pdfCabecalho(logo, usuario, periodo, titulo = 'Relatório de Atividades') {
   const larguraLogo = 30 * 600 / 181;
   return {
     table: {
@@ -442,7 +446,7 @@ function pdfCabecalho(logo, usuario, periodo) {
                 table: { body: [[{ image: logo, width: larguraLogo, fillColor: '#000000', margin: [6, 6, 6, 6] }]] },
                 layout: 'noBorders',
               },
-              { width: '*', text: 'Relatório de Atividades', bold: true, fontSize: 18, alignment: 'center', margin: [0, 10, 0, 0] },
+              { width: '*', text: titulo, bold: true, fontSize: 18, alignment: 'center', margin: [0, 10, 0, 0] },
               { width: larguraLogo + 12, text: '' },
             ],
             margin: [10, 10, 10, 10],
@@ -468,7 +472,7 @@ function pdfNumero(valor, rotulo) {
   };
 }
 
-function pdfMapa(mapa) {
+function pdfMapa(mapa, titulo = 'Mapa das atividades') {
   const itens = mapa.legenda.map(l => ({
     width: 'auto',
     columns: [
@@ -482,7 +486,7 @@ function pdfMapa(mapa) {
   }
   return {
     stack: [
-      pdfBarra('Mapa das atividades', { centro: true, tamanho: 13 }),
+      pdfBarra(titulo, { centro: true, tamanho: 13 }),
       { image: mapa.imagem, width: PDF_LARGURA, margin: [0, 6, 0, 0] },
       ...linhasLegenda,
       mapa.comSatelite
@@ -596,10 +600,21 @@ async function carregarLogoPdf() {
   return blobParaDataUrl(await resposta.blob());
 }
 
-function nomeArquivoPdf() {
+function nomeArquivoPdf(tipo) {
   const inicio = chaveDia(periodoCarregado.inicio);
   const fim = chaveDia(periodoCarregado.fim);
-  return inicio === fim ? `Relatorio_RDO_${inicio}.pdf` : `Relatorio_RDO_${inicio}_a_${fim}.pdf`;
+  const base = tipo === 'trecho' ? 'Relatorio_por_trecho' : 'Relatorio_RDO';
+  return inicio === fim ? `${base}_${inicio}.pdf` : `${base}_${inicio}_a_${fim}.pdf`;
+}
+
+function tipoDeRelatorioPdf() {
+  return document.querySelector('input[name="pdf-tipo"]:checked')?.value || 'encarregado';
+}
+
+function atualizarOpcoesDoTipoPdf() {
+  document.getElementById('pdf-rotulo-mapa').textContent = tipoDeRelatorioPdf() === 'trecho'
+    ? 'Incluir o mapa de cada atividade'
+    : 'Incluir mapa das atividades';
 }
 
 function abrirDialogoPdf() {
@@ -651,27 +666,37 @@ async function gerarRelatorioPdf() {
   try {
     const incluirFotos = document.getElementById('pdf-incluir-fotos').checked;
     const incluirMapa = document.getElementById('pdf-incluir-mapa').checked;
+    const tipo = tipoDeRelatorioPdf();
     mostrarProgressoPdf('Preparando…');
     await garantirPdfMake();
     const logo = await carregarLogoPdf();
-    const dados = await montarBlocosDoRelatorio(
-      recorteAtual.registros, recorteAtual.fotos, incluirFotos, mostrarProgressoPdf);
-    if (exportacaoPdf.cancelada) throw new Error('CANCELADO');
-    let mapa = null;
-    if (incluirMapa) {
-      mostrarProgressoPdf('Montando o mapa…');
-      try {
-        mapa = await montarMapaDasAtividadesPdf(dados.blocos.flatMap(b => b.registros), mostrarProgressoPdf);
-      } catch (e) {
-        console.warn('Relatório PDF: mapa não montado', e);
+    let definicao;
+    let totalRegistros;
+    if (tipo === 'trecho') {
+      const gerado = await gerarDefinicaoPorTrecho(logo, incluirFotos, incluirMapa, mostrarProgressoPdf);
+      definicao = gerado.definicao;
+      totalRegistros = gerado.registros;
+    } else {
+      const dados = await montarBlocosDoRelatorio(
+        recorteAtual.registros, recorteAtual.fotos, incluirFotos, mostrarProgressoPdf);
+      if (exportacaoPdf.cancelada) throw new Error('CANCELADO');
+      let mapa = null;
+      if (incluirMapa) {
+        mostrarProgressoPdf('Montando o mapa…');
+        try {
+          mapa = await montarMapaDasAtividadesPdf(dados.blocos.flatMap(b => b.registros), mostrarProgressoPdf);
+        } catch (e) {
+          console.warn('Relatório PDF: mapa não montado', e);
+        }
       }
+      definicao = montarDefinicaoPdf(dados, logo, incluirFotos, mapa);
+      totalRegistros = dados.blocos.reduce((s, b) => s + b.registros.length, 0);
     }
     if (exportacaoPdf.cancelada) throw new Error('CANCELADO');
     mostrarProgressoPdf('Montando o PDF…');
-    const definicao = montarDefinicaoPdf(dados, logo, incluirFotos, mapa);
     await new Promise((resolve, reject) => {
       try {
-        pdfMake.createPdf(definicao).download(nomeArquivoPdf(), resolve);
+        pdfMake.createPdf(definicao).download(nomeArquivoPdf(tipo), resolve);
       } catch (e) {
         reject(e);
       }
@@ -681,7 +706,8 @@ async function gerarRelatorioPdf() {
     const fimPdf = chaveDia(periodoCarregado.fim);
     registrarUso('pdf', {
       periodo: inicioPdf === fimPdf ? dataBr(inicioPdf) : `${dataBr(inicioPdf)} a ${dataBr(fimPdf)}`,
-      registros: dados.blocos.reduce((s, b) => s + b.registros.length, 0),
+      tipo: tipo === 'trecho' ? 'por trecho e atividade' : 'por encarregado',
+      registros: totalRegistros,
       fotos: incluirFotos,
       mapa: incluirMapa,
       filtros: descreverFiltrosAtivos(),
