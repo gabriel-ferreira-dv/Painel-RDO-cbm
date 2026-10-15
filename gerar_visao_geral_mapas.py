@@ -19,7 +19,7 @@ from pathlib import Path
 
 from PIL import Image
 
-METROS_POR_PIXEL = 1.5
+METROS_POR_PIXEL = 1.0
 
 MAPAS = [
     ('D2', 351849.7584, 7784342.6030, 354010.7511, 7794250.1072, 25, 90),
@@ -78,7 +78,7 @@ def gerar(nome, sw_e, sw_n, ne_e, ne_n, cols, rows, arquivo_zip):
             mosaico.paste(reduzida, (coluna * larg_peca, linha * alt_peca))
             usadas += 1
     saida = DESTINO / f'{sem_acento(nome)}.webp'
-    mosaico.save(saida, 'WEBP', quality=80, method=6)
+    mosaico.save(saida, 'WEBP', quality=95, method=6)
     print(f'  {saida.name}: {mosaico.width}x{mosaico.height}, {usadas} recortes, '
           f'{saida.stat().st_size // 1024} KB')
 

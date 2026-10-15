@@ -282,6 +282,8 @@ function desenharAfim(ctx, img, sx, sy, sw, sh, t, be, bd, escala = 1, sobra = 0
 
 function desenharVisaoGeral(ctx, def, img, naTela, escala = 1) {
   const alturaLinha = img.height / def.rows;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   for (let r = 0; r < def.rows; r += VISAO_GERAL_LINHAS_POR_FAIXA) {
     const r1 = Math.min(def.rows, r + VISAO_GERAL_LINHAS_POR_FAIXA);
     const t = naTela(cantoDoMapa(def, r, 0));
