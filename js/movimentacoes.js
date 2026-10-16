@@ -10,6 +10,7 @@ const NOMES_DE_EVENTO = {
   foto_restaurada: 'Foto restaurada',
   registro_excluido: 'Registro excluído',
   registro_restaurado: 'Registro restaurado',
+  registro_editado: 'Registro corrigido',
 };
 
 let movimentacoesAtuais = [];
@@ -55,6 +56,8 @@ function descreverMovimentacao(evento, det = {}) {
       return `Excluiu o registro nº ${det.registro_id}${det.motivo ? ` · Motivo: ${det.motivo}` : ''}`;
     case 'registro_restaurado':
       return `Restaurou o registro nº ${det.registro_id}`;
+    case 'registro_editado':
+      return `Corrigiu o registro nº ${det.registro_id}${Array.isArray(det.campos) && det.campos.length ? `: ${det.campos.join(', ')}` : ''}`;
     default:
       return JSON.stringify(det);
   }

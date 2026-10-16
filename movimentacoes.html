@@ -8,7 +8,11 @@
 <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="img/favicon-192.png">
 <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="css/estilo.css">
+<link rel="stylesheet" href="css/visual.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -27,10 +31,10 @@
   </div>
 </div>
 
-<div id="pagina-admin" hidden>
+<div id="pagina-admin" class="moldura moldura-solta" hidden>
   <header class="topo">
     <div class="marca">
-      <img class="logo-completa" src="img/logo-barbosa-mello.webp" alt="Construtora Barbosa Mello">
+      <img class="logo-completa" src="img/icone-branco.png" alt="Construtora Barbosa Mello">
       <img class="logo-icone" src="img/icone-branco.png" alt="Barbosa Mello">
       <h1>Movimentações do painel</h1>
     </div>
@@ -76,6 +80,7 @@
             <option value="foto_restaurada">Foto restaurada</option>
             <option value="registro_excluido">Registro excluído</option>
             <option value="registro_restaurado">Registro restaurado</option>
+            <option value="registro_editado">Registro corrigido</option>
             <option value="saiu">Saiu</option>
           </select>
         </div>

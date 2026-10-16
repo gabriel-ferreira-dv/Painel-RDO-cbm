@@ -19,6 +19,7 @@ function mostrarDashboard(user) {
 
   aplicarAtalhoPeriodo('mes');
   mostrarLinkAdmin();
+  abrirMapaSeNoEndereco();
 }
 
 function intervaloDoAtalho(atalho) {
@@ -288,7 +289,7 @@ function atualizarTabela(registros) {
         <td class="col-km" data-rotulo="Local">KM ${escaparHtml(km)} · ${escaparHtml(estaca)}</td>
         <td class="col-servico" data-rotulo="Serviço">${escaparHtml(descreverServico(r))}</td>
         <td class="col-medicao" data-rotulo="Medição">${escaparHtml(descreverMedicao(r))}</td>
-        <td class="col-acoes"><button type="button" class="botao-excluir-registro" data-excluir-registro="${r.id}" title="Excluir este registro">Excluir</button></td>
+        <td class="col-acoes"><button type="button" class="botao-editar-registro" data-editar-registro="${r.id}" title="Corrigir este registro">Editar</button> <button type="button" class="botao-excluir-registro" data-excluir-registro="${r.id}" title="Excluir este registro">Excluir</button></td>
       </tr>`;
   }).join('');
 
@@ -377,9 +378,10 @@ async function carregarMaisFotos() {
     esqueletos.push(el);
   }
 
+  const originais = lote.map(i => caminhoSemCarimbo(i.foto)).filter(c => c && !urlsSemCarimbo.has(c));
   const { data: assinadas, error } = await sb.storage
     .from(BUCKET_FOTOS)
-    .createSignedUrls(lote.map(i => i.foto.caminho_storage), 3600);
+    .createSignedUrls([...lote.map(i => i.foto.caminho_storage), ...originais], 3600);
 
   esqueletos.forEach(el => el.remove());
   if (g !== galeria) return;
@@ -392,7 +394,12 @@ async function carregarMaisFotos() {
     atualizarBotaoMaisFotos();
     return;
   }
-  for (const a of assinadas) if (a.signedUrl) g.urls.set(a.path, a.signedUrl);
+  const ehOriginal = new Set(originais);
+  for (const a of assinadas) {
+    if (!a.signedUrl) continue;
+    if (ehOriginal.has(a.path)) urlsSemCarimbo.set(a.path, a.signedUrl);
+    else g.urls.set(a.path, a.signedUrl);
+  }
 
   const inicio = g.mostrados;
   g.mostrados += lote.length;
@@ -447,16 +454,24 @@ async function abrirLightbox(indice) {
   indiceLightbox = indice;
 
   const { foto, registro: r } = item;
-  const url = galeria.urls.get(foto.caminho_storage) || '';
+  const versao = await versaoDaFotoParaMostrar(foto);
+  if (indiceLightbox !== indice) return;
+  const url = versao.url;
   const img = document.getElementById('lightbox-img');
   img.src = url;
-  img.alt = r ? descreverServico(r) : 'Foto do registro';
+  img.alt = (r ? descreverServico(r) : 'Foto do registro') + (versao.semCarimbo ? ' (sem carimbo)' : '');
+  atualizarSeletorDeCarimbo(versao.temSemCarimbo, versao.semCarimbo);
+  adiantarVersoesAoRedor(indice);
+  document.getElementById('lightbox-editar').hidden = !(ehAdminPainel && r);
 
   const linhas = [];
   if (r) {
     linhas.push(`<b>${escaparHtml(r.encarregado)}</b>`);
     linhas.push(escaparHtml([r.atividade, descreverServico(r), descreverMedicao(r)].filter(Boolean).join(' · ')));
     linhas.push(escaparHtml(`${r.trecho}${r.via ? ' · ' + r.via : ''} · KM ${descreverKm(r)} · Estaca ${descreverEstaca(r)}`));
+    if (r.editado_em) {
+      linhas.push(`<span class="lb-editado">Corrigido em ${formatarDataHora(r.editado_em)}${r.editado_por_matricula ? ` por ${escaparHtml(r.editado_por_matricula)}` : ''}</span>`);
+    }
   }
   const extras = [formatarDataHora(foto.criado_em)];
   if (fotoTemLocal(item) || (r && r.estaca_inicial)) {
@@ -465,7 +480,7 @@ async function abrirLightbox(indice) {
   if (fotoTemLocal(item)) {
     extras.push(`<a href="https://www.google.com/maps?q=${Number(foto.latitude)},${Number(foto.longitude)}" target="_blank" rel="noopener">Google Maps</a>`);
   }
-  if (url) extras.push(`<a href="${escaparHtml(url)}" target="_blank" rel="noopener">abrir original</a>`);
+  if (url) extras.push(`<a href="${escaparHtml(url)}" target="_blank" rel="noopener">abrir em tamanho original</a>`);
   linhas.push(`<span class="lb-extras">${extras.join(' · ')}</span>`);
 
   document.getElementById('lightbox-legenda').innerHTML =

@@ -89,13 +89,30 @@ document.getElementById('confirmar-excluir-foto').addEventListener('click', conf
 document.getElementById('cancelar-excluir-foto').addEventListener('click', () =>
   document.getElementById('dialogo-excluir-foto').close());
 document.getElementById('corpo-tabela-atividades').addEventListener('click', (e) => {
-  const botao = e.target.closest('button[data-excluir-registro]');
-  if (botao) abrirExclusaoDeRegistro(Number(botao.dataset.excluirRegistro));
+  const excluir = e.target.closest('button[data-excluir-registro]');
+  if (excluir) abrirExclusaoDeRegistro(Number(excluir.dataset.excluirRegistro));
+  const editar = e.target.closest('button[data-editar-registro]');
+  if (editar) abrirEdicaoDeRegistro(cacheRegistros.find(r => r.id === Number(editar.dataset.editarRegistro)));
+});
+document.getElementById('seletor-carimbo').addEventListener('click', (e) => {
+  const botao = e.target.closest('button[data-carimbo]');
+  if (botao) escolherVersaoDaFoto(botao.dataset.carimbo === 'sem');
+});
+document.getElementById('lightbox-editar').addEventListener('click', abrirEdicaoDaFotoAtual);
+document.getElementById('salvar-editar-registro').addEventListener('click', salvarEdicaoDeRegistro);
+document.getElementById('cancelar-editar-registro').addEventListener('click', () =>
+  document.getElementById('dialogo-editar-registro').close());
+document.getElementById('form-editar-registro').addEventListener('submit', (e) => {
+  e.preventDefault();
+  salvarEdicaoDeRegistro();
 });
 document.getElementById('confirmar-excluir-registro').addEventListener('click', confirmarExclusaoDeRegistro);
 document.getElementById('cancelar-excluir-registro').addEventListener('click', () =>
   document.getElementById('dialogo-excluir-registro').close());
-document.getElementById('detalhes-mapa').open = window.matchMedia('(min-width: 701px)').matches;
+document.addEventListener('click', (e) => {
+  const detalhes = document.getElementById('detalhes-mapa');
+  if (detalhes.open && !detalhes.contains(e.target)) detalhes.open = false;
+});
 document.getElementById('pdf-gerar').addEventListener('click', gerarRelatorioPdf);
 document.getElementById('pdf-cancelar').addEventListener('click', cancelarRelatorioPdf);
 document.getElementById('pdf-incluir-fotos').addEventListener('change', atualizarAvisoPdf);
