@@ -75,7 +75,8 @@ function mensagemErroTroca(err) {
 
 async function sair() {
   await registrarUsoComLimite('saiu');
-  try { sessionStorage.removeItem('uso-acesso'); sessionStorage.removeItem('papel-admin'); } catch {}
+  try { sessionStorage.removeItem('uso-acesso'); } catch {}
+  esquecerPapel();
   await sb.auth.signOut();
   location.reload();
 }
@@ -96,7 +97,10 @@ async function restaurarSessao() {
   try {
     const { data } = await sb.auth.getSession();
     const user = data.session?.user;
-    if (!user) return;
+    if (!user) {
+      esquecerPapel();
+      return;
+    }
     const acesso = await acessoDeGestor(user);
     if (acesso === null) {
       await sb.auth.signOut();

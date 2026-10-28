@@ -24,11 +24,6 @@ function mostrarTelaDados(id) {
   document.documentElement.classList.remove('verificando');
 }
 
-function negarDados(texto) {
-  document.getElementById('texto-negado').textContent = texto;
-  mostrarTelaDados('tela-negado');
-}
-
 function avisarDados(texto) {
   const el = document.getElementById('aviso-flutuante');
   el.textContent = texto;
@@ -333,11 +328,11 @@ function caminhoDoEnvio(item) {
   return `${item.filial_id}/${carimboDoEnvio()}/${nomeArquivo}`;
 }
 
-function subirParaOStorage(caminho, arquivo, tipo, aoProgredir) {
-  return new Promise(async (resolver, rejeitar) => {
-    const { data } = await sb.auth.getSession();
-    const token = data.session?.access_token;
-    if (!token) { rejeitar(new Error('Sessão expirada. Entre de novo no painel.')); return; }
+async function subirParaOStorage(caminho, arquivo, tipo, aoProgredir) {
+  const { data } = await sb.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new Error('Sessão expirada. Entre de novo no painel.');
+  return new Promise((resolver, rejeitar) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `${SUPABASE_URL}/storage/v1/object/dados/${caminho.split('/').map(encodeURIComponent).join('/')}`);
     xhr.setRequestHeader('Authorization', `Bearer ${token}`);
@@ -423,30 +418,13 @@ function prepararTelaDados() {
 }
 
 async function iniciarPaginaDados() {
-  aplicarTema(temaInicial());
-  if (temSessaoGuardada()) {
-    adiantarLinksDoPapel();
-    mostrarTelaDados('pagina-admin');
-  }
-  try {
-    const { data } = await sb.auth.getSession();
-    if (!data.session) {
-      location.replace('index.html');
-      return;
-    }
-    papelDados = await lerPapelAdmin();
-    if (!papelDados) {
-      negarDados('Esta página é exclusiva dos administradores do painel.');
-      return;
-    }
-    if (papelDados.papel === 'obra' && papelDados.permissoes?.dados !== true) {
-      negarDados(`O ADMapp não liberou a atualização dos dados para a obra ${papelDados.filial}. Fale com o gestor geral.`);
-      return;
-    }
-  } catch (e) {
-    negarDados('Não foi possível confirmar o acesso: ' + e.message);
-    return;
-  }
+  const acesso = await entrarNaPaginaRestrita({
+    mostrarTela: mostrarTelaDados,
+    permissao: 'dados',
+    semPermissao: (p) => `O ADMapp não liberou a atualização dos dados para a obra ${p.filial}. Fale com o gestor geral.`,
+  });
+  if (!acesso) return;
+  papelDados = acesso.papel;
   prepararTelaDados();
   mostrarTelaDados('pagina-admin');
   await carregarDados();
@@ -472,10 +450,6 @@ document.getElementById('cancelar-envio').addEventListener('click', () => {
 });
 document.getElementById('dialogo-envio').addEventListener('cancel', (e) => { if (enviandoDados) e.preventDefault(); });
 document.getElementById('botao-tema').addEventListener('click', alternarTema);
-document.getElementById('botao-sair').addEventListener('click', async () => {
-  try { sessionStorage.removeItem('uso-acesso'); sessionStorage.removeItem('papel-admin'); } catch {}
-  await sb.auth.signOut();
-  location.replace('index.html');
-});
+document.getElementById('botao-sair').addEventListener('click', sairDaPaginaRestrita);
 
 iniciarPaginaDados();

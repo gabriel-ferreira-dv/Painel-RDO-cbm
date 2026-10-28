@@ -5,10 +5,11 @@
 # uma publicação.
 #
 # Content-Security-Policy-Report-Only: lista de onde o painel pode carregar
-# scripts, estilos, imagens e dados. Por enquanto só AVISA no console do
-# navegador (não bloqueia nada). Depois de usar o painel alguns dias sem
-# aparecer "Content Security Policy" no console (F12), troque o nome para
-# Content-Security-Policy para passar a bloquear.
+# scripts, estilos, imagens e dados. Por enquanto só AVISA (não bloqueia
+# nada). Cada aviso, de qualquer gestor, fica registrado em Movimentações
+# como "Bloqueio de segurança (CSP)". Depois de alguns dias sem nenhum
+# registro desses, troque o nome para Content-Security-Policy para passar a
+# bloquear.
 /*
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff

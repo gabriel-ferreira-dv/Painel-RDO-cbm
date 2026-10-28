@@ -395,14 +395,18 @@ function atualizarFotos(fotos, registros) {
   carregarMaisFotos();
 }
 
-async function carregarMaisFotos() {
+function carregarMaisFotos() {
   const g = galeria;
+  if (!g.carregando) g.carregando = carregarLoteDeFotos(g).finally(() => { g.carregando = null; });
+  return g.carregando;
+}
+
+async function carregarLoteDeFotos(g) {
   const grade = document.getElementById('grade-fotos');
   const botao = document.getElementById('botao-mais-fotos');
   const lote = g.itens.slice(g.mostrados, g.mostrados + FOTOS_POR_PAGINA);
-  if (lote.length === 0 || g.carregando) return;
+  if (lote.length === 0) return;
 
-  g.carregando = true;
   botao.disabled = true;
   botao.textContent = 'Carregando fotos…';
   const esqueletos = document.createElement('div');
@@ -437,7 +441,6 @@ async function carregarMaisFotos() {
     esqueletos.remove();
   }
   if (g !== galeria) return;
-  g.carregando = false;
   botao.disabled = false;
 
   if (erro) {
@@ -567,8 +570,11 @@ function htmlFoto({ foto, registro }, indice) {
 }
 
 async function abrirLightbox(indice) {
-  if (indice >= galeria.mostrados && indice < galeria.itens.length) {
+  while (indice >= galeria.mostrados && indice < galeria.itens.length) {
+    const g = galeria;
+    const antes = g.mostrados;
     await carregarMaisFotos();
+    if (g !== galeria || g.mostrados === antes) break;
   }
   const item = galeria.itens[indice];
   if (!item || indice >= galeria.mostrados) return;
