@@ -615,34 +615,14 @@ function usuarioPorId(id) {
 }
 
 async function iniciarPaginaGestao() {
-  aplicarTema(temaInicial());
-  if (temSessaoGuardada()) {
-    adiantarLinksDoPapel();
-    mostrarTela('pagina-admin');
-  }
-  try {
-    const { data } = await sb.auth.getSession();
-    if (!data.session) {
-      location.replace('index.html');
-      return;
-    }
-    meuIdGestao = data.session.user.id;
-    papelGestao = await lerPapelAdmin();
-    if (!papelGestao) {
-      mostrarTela('tela-negado');
-      return;
-    }
-    if (modoObra() && papelGestao.permissoes?.usuarios !== true) {
-      document.getElementById('texto-negado').textContent =
-        `O ADMapp não liberou a gestão de usuários para a obra ${papelGestao.filial}. Fale com o gestor geral.`;
-      mostrarTela('tela-negado');
-      return;
-    }
-  } catch (e) {
-    document.getElementById('texto-negado').textContent = 'Não foi possível confirmar o acesso: ' + e.message;
-    mostrarTela('tela-negado');
-    return;
-  }
+  const acesso = await entrarNaPaginaRestrita({
+    mostrarTela,
+    permissao: 'usuarios',
+    semPermissao: (p) => `O ADMapp não liberou a gestão de usuários para a obra ${p.filial}. Fale com o gestor geral.`,
+  });
+  if (!acesso) return;
+  meuIdGestao = acesso.usuario.id;
+  papelGestao = acesso.papel;
   prepararTelaDoPapel();
   mostrarTela('pagina-admin');
   await carregarFiliais();
@@ -711,10 +691,6 @@ document.getElementById('fi-copiar').addEventListener('change', (e) => {
   document.getElementById('fi-usa-km').checked = usaKm(configDaFilial(e.target.value));
 });
 document.getElementById('botao-tema').addEventListener('click', alternarTema);
-document.getElementById('botao-sair').addEventListener('click', async () => {
-  try { sessionStorage.removeItem('uso-acesso'); sessionStorage.removeItem('papel-admin'); } catch {}
-  await sb.auth.signOut();
-  location.replace('index.html');
-});
+document.getElementById('botao-sair').addEventListener('click', sairDaPaginaRestrita);
 
 iniciarPaginaGestao();

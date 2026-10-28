@@ -8,7 +8,10 @@ class LinksAssinados extends Map {
 
   get(caminho) {
     const link = super.get(caminho);
-    return link && link.vence > Date.now() ? link.url : undefined;
+    if (!link) return undefined;
+    if (link.vence > Date.now()) return link.url;
+    this.delete(caminho);
+    return undefined;
   }
 
   has(caminho) {
@@ -180,17 +183,98 @@ function temSessaoGuardada() {
 
 const CHAVE_PAPEL_GUARDADO = 'papel-admin';
 
+function idDaSessaoGuardada() {
+  try {
+    const chave = Object.keys(localStorage).find(k => /^sb-.+-auth-token$/.test(k));
+    return chave ? JSON.parse(localStorage.getItem(chave))?.user?.id || null : null;
+  } catch {
+    return null;
+  }
+}
+
 function guardarPapel(papel) {
-  try { sessionStorage.setItem(CHAVE_PAPEL_GUARDADO, JSON.stringify(papel || null)); } catch {}
+  try {
+    sessionStorage.setItem(CHAVE_PAPEL_GUARDADO, JSON.stringify({ usuario: idDaSessaoGuardada(), papel: papel || null }));
+  } catch {}
+}
+
+function esquecerPapel() {
+  try { sessionStorage.removeItem(CHAVE_PAPEL_GUARDADO); } catch {}
 }
 
 function papelGuardado() {
   try {
     const texto = sessionStorage.getItem(CHAVE_PAPEL_GUARDADO);
-    return texto === null ? undefined : JSON.parse(texto);
+    if (texto === null) return undefined;
+    const guardado = JSON.parse(texto);
+    const usuario = idDaSessaoGuardada();
+    return guardado && usuario && guardado.usuario === usuario ? guardado.papel : undefined;
   } catch {
     return undefined;
   }
+}
+
+const PERMISSOES_DO_ADMAPP = { usuarios: true, registros: true, dados: true };
+
+function funcaoNaoExiste(error) {
+  return error?.code === 'PGRST202' || /could not find the function/i.test(String(error?.message || ''));
+}
+
+async function lerPapelAdmin() {
+  try {
+    const { data, error } = await sb.rpc('meu_papel_admin');
+    if (error && !funcaoNaoExiste(error)) {
+      esquecerPapel();
+      return null;
+    }
+    let papel;
+    if (!error) {
+      papel = data && data.papel ? data : null;
+    } else {
+      const antigo = await sb.rpc('sou_admin_painel');
+      papel = !antigo.error && antigo.data === true ? { papel: 'geral', permissoes: PERMISSOES_DO_ADMAPP } : null;
+    }
+    guardarPapel(papel);
+    return papel;
+  } catch {
+    esquecerPapel();
+    return null;
+  }
+}
+
+async function entrarNaPaginaRestrita({ mostrarTela, permissao, semPermissao }) {
+  aplicarTema(temaInicial());
+  if (temSessaoGuardada()) {
+    adiantarLinksDoPapel();
+    mostrarTela('pagina-admin');
+  }
+  const negar = (texto) => {
+    if (texto) document.getElementById('texto-negado').textContent = texto;
+    mostrarTela('tela-negado');
+    return null;
+  };
+  try {
+    const { data } = await sb.auth.getSession();
+    if (!data.session) {
+      esquecerPapel();
+      location.replace('index.html');
+      return null;
+    }
+    const papel = await lerPapelAdmin();
+    if (!papel) return negar('Esta página é exclusiva dos administradores do painel.');
+    if (permissao && papel.papel === 'obra' && papel.permissoes?.[permissao] !== true) return negar(semPermissao(papel));
+    mostrarLinksDoPapel(papel);
+    return { papel, usuario: data.session.user };
+  } catch (e) {
+    return negar('Não foi possível confirmar o acesso: ' + e.message);
+  }
+}
+
+async function sairDaPaginaRestrita() {
+  try { sessionStorage.removeItem('uso-acesso'); } catch {}
+  esquecerPapel();
+  await sb.auth.signOut();
+  location.replace('index.html');
 }
 
 function mostrarLinksDoPapel(papel) {

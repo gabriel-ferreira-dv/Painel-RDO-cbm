@@ -18,6 +18,7 @@ const NOMES_DE_EVENTO = {
   usuario_desbloqueado: 'Usuário desbloqueado',
   filial_salva: 'Filial salva',
   dados_enviados: 'Dados da obra',
+  csp: 'Bloqueio de segurança',
 };
 
 let movimentacoesAtuais = [];
@@ -79,6 +80,8 @@ function descreverMovimentacao(evento, det = {}) {
       return `${det.nova ? 'Criou' : 'Alterou'} a filial ${det.filial || ''}${det.config ? ' (configuração)' : ''}`;
     case 'dados_enviados':
       return `Enviou ${det.nome || ''} da obra ${det.filial || ''} (versão ${det.versao ?? '?'})`;
+    case 'csp':
+      return `${det.modo === 'enforce' ? 'Bloqueou' : 'Bloquearia'} ${det.bloqueado || '?'} (${det.diretiva || '?'}) em ${det.pagina || '?'}`;
     default:
       return JSON.stringify(det);
   }
@@ -343,29 +346,7 @@ async function atualizarTudoMov() {
 }
 
 async function iniciarPaginaAdmin() {
-  aplicarTema(temaInicial());
-  if (temSessaoGuardada()) {
-    adiantarLinksDoPapel();
-    mostrarTela('pagina-admin');
-  }
-  try {
-    const { data } = await sb.auth.getSession();
-    if (!data.session) {
-      location.replace('index.html');
-      return;
-    }
-    const { data: admin, error } = await sb.rpc('sou_admin_painel');
-    if (error || admin !== true) {
-      if (error) document.getElementById('texto-negado').textContent =
-        'Não foi possível confirmar o acesso: ' + error.message;
-      mostrarTela('tela-negado');
-      return;
-    }
-  } catch (e) {
-    document.getElementById('texto-negado').textContent = 'Não foi possível confirmar o acesso: ' + e.message;
-    mostrarTela('tela-negado');
-    return;
-  }
+  if (!await entrarNaPaginaRestrita({ mostrarTela })) return;
   mostrarTela('pagina-admin');
   aplicarAtalhoMov(6);
   atualizarTudoMov();
@@ -394,10 +375,6 @@ document.getElementById('lixeira-fotos').addEventListener('click', (e) => {
 });
 document.getElementById('mov-csv').addEventListener('click', baixarCsvMovimentacoes);
 document.getElementById('botao-tema').addEventListener('click', alternarTema);
-document.getElementById('botao-sair').addEventListener('click', async () => {
-  try { sessionStorage.removeItem('uso-acesso'); sessionStorage.removeItem('papel-admin'); } catch {}
-  await sb.auth.signOut();
-  location.replace('index.html');
-});
+document.getElementById('botao-sair').addEventListener('click', sairDaPaginaRestrita);
 
 iniciarPaginaAdmin();
