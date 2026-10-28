@@ -1,4 +1,6 @@
 const URL_DADOS = `${SUPABASE_URL}/storage/v1/object/public/dados`;
+const FILIAL_PADRAO_DOS_DADOS = '010152';
+const CSVS_DA_OBRA = ['SevNotaveis.csv', 'KMxEst.csv', 'estacas_coords.csv'];
 const URL_SATELITE = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile';
 
 const MAPA_LARGURA = 1200;
@@ -22,7 +24,7 @@ const MAPAS_DO_PROJETO = [
   { nome: 'Contorno_Ibiraçu', swE: 354902.080, swN: 7806251.889, neE: 357104.019, neN: 7808991.788, cols: 20, rows: 30 },
 ];
 
-function utmParaLatLng(leste, norte) {
+function utmParaLatLng(leste, norte, fuso = 24, sul = true) {
   const a = 6378137;
   const f = 1 / 298.257222101;
   const k0 = 0.9996;
@@ -30,7 +32,7 @@ function utmParaLatLng(leste, norte) {
   const ep2 = e2 / (1 - e2);
   const e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
   const x = leste - 500000;
-  const y = norte - 10000000;
+  const y = norte - (sul ? 10000000 : 0);
   const m = y / k0;
   const mu = m / (a * (1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256));
   const phi1 = mu
@@ -50,7 +52,7 @@ function utmParaLatLng(leste, norte) {
     d ** 2 / 2
     - (5 + 3 * t1 + 10 * c1 - 4 * c1 ** 2 - 9 * ep2) * d ** 4 / 24
     + (61 + 90 * t1 + 298 * c1 + 45 * t1 ** 2 - 252 * ep2 - 3 * c1 ** 2) * d ** 6 / 720);
-  const lon = (-39 * Math.PI / 180) + (
+  const lon = ((fuso * 6 - 183) * Math.PI / 180) + (
     d
     - (1 + 2 * t1 + c1) * d ** 3 / 6
     + (5 - 2 * c1 + 28 * t1 - 3 * c1 ** 2 + 8 * ep2 + 24 * t1 ** 2) * d ** 5 / 120) / cos;
@@ -97,8 +99,14 @@ function numeroInteiroDaEstaca(texto) {
   return Number.isNaN(n) ? NaN : Math.floor(n);
 }
 
+function urlDoArquivoDeDados(arquivo) {
+  return `${URL_DADOS}/${String(arquivo).split('/').map(encodeURIComponent).join('/')}`;
+}
+
 async function lerCsvDados(arquivo) {
-  const bytes = new Uint8Array(await (await fetch(`${URL_DADOS}/${arquivo}`)).arrayBuffer());
+  const resposta = await fetch(urlDoArquivoDeDados(arquivo));
+  if (!resposta.ok) throw new Error(`${arquivo}: HTTP ${resposta.status}`);
+  const bytes = new Uint8Array(await resposta.arrayBuffer());
   let texto = new TextDecoder('utf-8').decode(bytes);
   if (texto.includes('�')) texto = new TextDecoder('windows-1252').decode(bytes);
   return texto.replace(/^﻿/, '').split(/\r?\n/).slice(1).filter(l => l.trim()).map(l => l.split(';'));
@@ -109,12 +117,106 @@ function numeroCsv(v) {
   return Number(t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t);
 }
 
-let estacasDoProjetoCache = null;
+function defDoMapaDaConfig(m, filial, fuso, sul) {
+  return {
+    nome: m.nome, filial, fuso, sul,
+    swE: Number(m.sw_e), swN: Number(m.sw_n), neE: Number(m.ne_e), neN: Number(m.ne_n),
+    cols: Number(m.colunas), rows: Number(m.linhas),
+  };
+}
 
-function carregarEstacasDoProjeto() {
-  if (!estacasDoProjetoCache) {
-    estacasDoProjetoCache = (async () => {
-      const [coords, kms] = await Promise.all([lerCsvDados('estacas_coords.csv'), lerCsvDados('KMxEst.csv')]);
+function obraPadraoDosDados() {
+  return {
+    fuso: 24, sul: true, arquivos: new Map(),
+    mapas: MAPAS_DO_PROJETO.map(m => ({ ...m, filial: FILIAL_PADRAO_DOS_DADOS, fuso: 24, sul: true })),
+  };
+}
+
+let obrasDosDadosCache = null;
+
+function obrasDosDados() {
+  if (!obrasDosDadosCache) {
+    obrasDosDadosCache = (async () => {
+      const obras = new Map();
+      const { data: filiais, error } = await sb.from('filiais').select('id, config');
+      for (const f of (error ? [] : filiais || [])) {
+        const c = f.config || {};
+        const fuso = Number(c.fuso_utm) || 24;
+        const sul = c.hemisferio_sul !== false;
+        const daConfig = Array.isArray(c.mapas)
+          ? c.mapas.filter(m => m && m.nome && Number(m.linhas) > 0 && Number(m.colunas) > 0)
+          : [];
+        const mapas = daConfig.length
+          ? daConfig.map(m => defDoMapaDaConfig(m, f.id, fuso, sul))
+          : f.id === FILIAL_PADRAO_DOS_DADOS ? obraPadraoDosDados().mapas.map(m => ({ ...m, fuso, sul })) : [];
+        const trechosSemKm = new Set((Array.isArray(c.trechos_sem_km) ? c.trechos_sem_km : []).map(chaveDoTrecho));
+        obras.set(f.id, { fuso, sul, mapas, arquivos: new Map(), usaKm: c.usa_km !== false, trechosSemKm, config: c });
+      }
+      if (obras.size === 0) obras.set(FILIAL_PADRAO_DOS_DADOS, obraPadraoDosDados());
+      const { data: linhas, error: erroDados } = await sb.from('dados_da_obra').select('filial_id, nome, arquivo');
+      if (!erroDados) {
+        for (const l of linhas || []) if (l.arquivo) obras.get(l.filial_id)?.arquivos.set(l.nome, l.arquivo);
+      } else {
+        const padrao = obras.get(FILIAL_PADRAO_DOS_DADOS);
+        if (padrao) {
+          for (const nome of CSVS_DA_OBRA) padrao.arquivos.set(nome, nome);
+          for (const m of padrao.mapas) padrao.arquivos.set(m.nome, `${semAcento(m.nome)}.zip`);
+          try {
+            const { data } = await sb.from('versoes_dados').select('nome,arquivo');
+            for (const l of data || []) if (l.arquivo) padrao.arquivos.set(l.nome, l.arquivo);
+          } catch {}
+        }
+      }
+      for (const obra of obras.values()) {
+        for (const def of obra.mapas) def.arquivo = obra.arquivos.get(def.nome) || null;
+      }
+      return obras;
+    })().catch(e => { obrasDosDadosCache = null; throw e; });
+  }
+  return obrasDosDadosCache;
+}
+
+async function mapasDasObras() {
+  try {
+    return [...(await obrasDosDados()).values()].flatMap(o => o.mapas);
+  } catch (e) {
+    console.warn('Mapa: configuração das obras indisponível', e);
+    return [];
+  }
+}
+
+function filialDoRegistro(r) {
+  return r?.filial_id || FILIAL_PADRAO_DOS_DADOS;
+}
+
+async function trechoPedeKm(r, trecho) {
+  try {
+    const obra = (await obrasDosDados()).get(filialDoRegistro(r));
+    if (!obra || obra.usaKm === undefined) return true;
+    return obra.usaKm && !obra.trechosSemKm.has(chaveDoTrecho(trecho));
+  } catch {
+    return true;
+  }
+}
+
+function arquivoDaObra(obra, filial, nome) {
+  return obra.arquivos.get(nome) || (filial === FILIAL_PADRAO_DOS_DADOS ? nome : null);
+}
+
+const estacasPorFilialCache = new Map();
+
+function carregarEstacasDoProjeto(filial = FILIAL_PADRAO_DOS_DADOS) {
+  if (!estacasPorFilialCache.has(filial)) {
+    estacasPorFilialCache.set(filial, (async () => {
+      const obras = await obrasDosDados().catch(() => new Map());
+      const obra = obras.get(filial) || obraPadraoDosDados();
+      const arquivoCoords = arquivoDaObra(obra, filial, 'estacas_coords.csv');
+      if (!arquivoCoords) return new Map();
+      const arquivoKms = arquivoDaObra(obra, filial, 'KMxEst.csv');
+      const [coords, kms] = await Promise.all([
+        lerCsvDados(arquivoCoords),
+        arquivoKms ? lerCsvDados(arquivoKms) : [],
+      ]);
       const kmPorEstaca = new Map();
       for (const [trecho, estaca, , km] of kms) {
         kmPorEstaca.set(`${chaveDoTrecho(trecho)}|${parseInt(estaca, 10)}`, String(km || '').trim());
@@ -127,17 +229,26 @@ function carregarEstacasDoProjeto() {
         const chave = chaveDoTrecho(trecho);
         if (!porTrecho.has(chave)) porTrecho.set(chave, []);
         porTrecho.get(chave).push({
-          numero, ponto: utmParaLatLng(e, n), km: kmPorEstaca.get(`${chave}|${numero}`) || '',
+          numero, ponto: utmParaLatLng(e, n, obra.fuso, obra.sul), km: kmPorEstaca.get(`${chave}|${numero}`) || '',
         });
       }
       for (const lista of porTrecho.values()) lista.sort((a, b) => a.numero - b.numero);
       return porTrecho;
-    })().catch(e => { estacasDoProjetoCache = null; throw e; });
+    })().catch(e => { estacasPorFilialCache.delete(filial); throw e; }));
   }
-  return estacasDoProjetoCache;
+  return estacasPorFilialCache.get(filial);
 }
 
-function estacasDoIntervaloMapa(r, porTrecho) {
+async function estacasDosRegistros(registros) {
+  const filiais = [...new Set(registros.map(filialDoRegistro))];
+  const porFilial = new Map();
+  await Promise.all(filiais.map(async (f) => porFilial.set(f, await carregarEstacasDoProjeto(f))));
+  return porFilial;
+}
+
+function estacasDoIntervaloMapa(r, porFilial) {
+  const porTrecho = porFilial.get(filialDoRegistro(r));
+  if (!porTrecho) return [];
   const lista = porTrecho.get(chaveDoTrecho(r.trecho));
   if (!lista) return [];
   const ini = numeroInteiroDaEstaca(r.estaca_inicial);
@@ -159,20 +270,8 @@ function corDoServicoMapa(servico, servicos) {
   return CORES_DE_SERVICO[(i < 0 ? 0 : i) % CORES_DE_SERVICO.length];
 }
 
-let arquivosDosMapasCache = null;
-
-async function arquivosDosMapas() {
-  if (!arquivosDosMapasCache) {
-    arquivosDosMapasCache = (async () => {
-      const mapa = new Map(MAPAS_DO_PROJETO.map(m => [m.nome, `${semAcento(m.nome)}.zip`]));
-      try {
-        const { data } = await sb.from('versoes_dados').select('nome,arquivo');
-        for (const l of data || []) if (mapa.has(l.nome) && l.arquivo) mapa.set(l.nome, l.arquivo);
-      } catch {}
-      return mapa;
-    })();
-  }
-  return arquivosDosMapasCache;
+function chaveDoMapa(def) {
+  return `${def.filial || FILIAL_PADRAO_DOS_DADOS}|${def.nome}`;
 }
 
 const indicesDeZip = new Map();
@@ -248,7 +347,8 @@ function cantoDoMapa(def, linha, coluna) {
       for (let c = 0; c <= def.cols; c++) {
         fila.push(utmParaLatLng(
           def.swE + (def.neE - def.swE) * c / def.cols,
-          def.neN - (def.neN - def.swN) * r / def.rows));
+          def.neN - (def.neN - def.swN) * r / def.rows,
+          def.fuso, def.sul));
       }
       def.grade.push(fila);
     }
@@ -261,14 +361,15 @@ const VISAO_GERAL_LINHAS_POR_FAIXA = 10;
 const visoesGerais = new Map();
 
 function visaoGeralDoMapa(def) {
+  if ((def.filial || FILIAL_PADRAO_DOS_DADOS) !== FILIAL_PADRAO_DOS_DADOS) return Promise.resolve(null);
   if (!visoesGerais.has(def.nome)) {
     visoesGerais.set(def.nome, carregarImagem(`img/mapas/${encodeURIComponent(semAcento(def.nome))}.webp`));
   }
   return visoesGerais.get(def.nome);
 }
 
-function mapasNaArea(area) {
-  return MAPAS_DO_PROJETO.filter(def =>
+function mapasNaArea(area, defs) {
+  return defs.filter(def =>
     sobrepoe(area, envelope([cantoDoMapa(def, def.rows, 0), cantoDoMapa(def, 0, def.cols), cantoDoMapa(def, 0, 0), cantoDoMapa(def, def.rows, def.cols)])));
 }
 
@@ -282,6 +383,8 @@ function desenharAfim(ctx, img, sx, sy, sw, sh, t, be, bd, escala = 1, sobra = 0
 
 function desenharVisaoGeral(ctx, def, img, naTela, escala = 1) {
   const alturaLinha = img.height / def.rows;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   for (let r = 0; r < def.rows; r += VISAO_GERAL_LINHAS_POR_FAIXA) {
     const r1 = Math.min(def.rows, r + VISAO_GERAL_LINHAS_POR_FAIXA);
     const t = naTela(cantoDoMapa(def, r, 0));
@@ -304,9 +407,10 @@ function sobrepoe(a, b) {
   return a.sul <= b.norte && a.norte >= b.sul && a.oeste <= b.leste && a.leste >= b.oeste;
 }
 
-function pecasDoProjetoNaArea(area) {
+function pecasDoProjetoNaArea(area, defs) {
   const pecas = [];
-  for (const def of MAPAS_DO_PROJETO) {
+  for (const def of defs) {
+    if (!def.arquivo) continue;
     const todo = envelope([cantoDoMapa(def, def.rows, 0), cantoDoMapa(def, 0, def.cols)]);
     if (!sobrepoe(area, todo)) continue;
     for (let r = 0; r < def.rows; r++) {
@@ -349,19 +453,19 @@ function desenharLinha(ctx, xy, cor, espessura) {
 }
 
 async function montarMapaDasAtividadesPdf(registros, aoProgredir) {
-  const porTrecho = await carregarEstacasDoProjeto();
+  const porFilial = await estacasDosRegistros(registros);
   const servicos = servicosPorFrequencia(registros.map(r => r.servico_notavel));
   const tracos = [];
   const desenhados = new Set();
-  const trechos = new Set();
+  const trechos = new Map();
   const rotulos = new Map();
   for (const r of registros) {
-    const cobertas = estacasDoIntervaloMapa(r, porTrecho);
+    const cobertas = estacasDoIntervaloMapa(r, porFilial);
     if (cobertas.length === 0) continue;
     tracos.push({ pontos: cobertas.map(e => e.ponto), cor: corDoServicoMapa(r.servico_notavel, servicos) });
     desenhados.add(r.servico_notavel);
     const trecho = chaveDoTrecho(r.trecho);
-    trechos.add(trecho);
+    trechos.set(`${filialDoRegistro(r)}|${trecho}`, porFilial.get(filialDoRegistro(r))?.get(trecho) || []);
     const inicio = cobertas[0];
     if (inicio.km && !rotulos.has(`${trecho}|${inicio.km}`)) {
       rotulos.set(`${trecho}|${inicio.km}`, { ponto: inicio.ponto, texto: `KM ${inicio.km}` });
@@ -411,7 +515,7 @@ async function montarMapaDasAtividadesPdf(registros, aoProgredir) {
   ]);
   if (z >= VISAO_GERAL_ZOOM_MINIMO) {
     aoProgredir('Montando o mapa: desenho do projeto…');
-    const defs = mapasNaArea(areaDaImagem);
+    const defs = mapasNaArea(areaDaImagem, await mapasDasObras());
     const imagens = await Promise.all(defs.map(visaoGeralDoMapa));
     ctx.save();
     ctx.globalAlpha = MAPA_OPACIDADE_PROJETO;
@@ -424,15 +528,13 @@ async function montarMapaDasAtividadesPdf(registros, aoProgredir) {
   }
   if (z >= MAPA_ZOOM_PROJETO) {
     const area = areaDaImagem;
-    const pecas = pecasDoProjetoNaArea(area);
+    const pecas = pecasDoProjetoNaArea(area, await mapasDasObras());
     if (pecas.length > 0 && pecas.length <= MAPA_MAX_PECAS) {
-      const arquivos = await arquivosDosMapas();
       let feitas = 0;
       const imagens = await emLotes(pecas, 6, async (p) => {
-        const arquivo = arquivos.get(p.def.nome);
         let img = null;
         try {
-          img = arquivo ? await tileDoZip(`${URL_DADOS}/${encodeURIComponent(arquivo)}`, p.linha, p.coluna) : null;
+          img = await tileDoZip(urlDoArquivoDeDados(p.def.arquivo), p.linha, p.coluna);
         } catch (e) {
           console.warn('Mapa do relatório: tile do projeto falhou', p.def.nome, p.linha, p.coluna, e);
         }
@@ -458,8 +560,7 @@ async function montarMapaDasAtividadesPdf(registros, aoProgredir) {
 
   if (!comProjeto) {
     const corEixo = comSatelite ? 'rgba(255,255,255,0.55)' : '#969696';
-    for (const trecho of trechos) {
-      const lista = porTrecho.get(trecho) || [];
+    for (const lista of trechos.values()) {
       for (const serie of [lista.filter(e => e.numero < 2000), lista.filter(e => e.numero >= 2000)]) {
         if (serie.length > 1) desenharLinha(ctx, serie.map(e => naTela(e.ponto)), corEixo, 2);
       }

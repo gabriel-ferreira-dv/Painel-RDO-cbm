@@ -1,6 +1,6 @@
 const PDFMAKE_SCRIPTS = [
-  'https://cdn.jsdelivr.net/npm/pdfmake@0.2.12/build/pdfmake.min.js',
-  'https://cdn.jsdelivr.net/npm/pdfmake@0.2.12/build/vfs_fonts.js',
+  ['https://cdn.jsdelivr.net/npm/pdfmake@0.2.12/build/pdfmake.min.js', 'sha384-UbICcZf4B6+FB/cmTNLOqZzUc40rHayX14EhEDfAnFhmte7yAAA7s081OeuC8VVT'],
+  ['https://cdn.jsdelivr.net/npm/pdfmake@0.2.12/build/vfs_fonts.js', 'sha384-zmD5tDN2awbMigS/yVcxHObSsdXXKh/27Y/bSII38WfNl+D7O/aVCIteAXsLY3p3'],
 ];
 
 const PDF_MARGEM = 12;
@@ -11,10 +11,14 @@ const PDF_AVISO_FOTOS = 300;
 
 let exportacaoPdf = { cancelada: false, rodando: false };
 
-function carregarScript(url) {
+function carregarScript(url, integridade) {
   return new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = url;
+    if (integridade) {
+      s.integrity = integridade;
+      s.crossOrigin = 'anonymous';
+    }
     s.onload = resolve;
     s.onerror = () => reject(new Error('Não foi possível carregar ' + url));
     document.head.appendChild(s);
@@ -23,7 +27,7 @@ function carregarScript(url) {
 
 async function garantirPdfMake() {
   if (window.pdfMake && window.pdfMake.vfs) return;
-  for (const url of PDFMAKE_SCRIPTS) await carregarScript(url);
+  for (const [url, integridade] of PDFMAKE_SCRIPTS) await carregarScript(url, integridade);
 }
 
 function blobParaDataUrl(blob) {
@@ -84,7 +88,7 @@ function descreverAtividadePdf(r) {
   const medicao = descreverMedicao(r);
   const porOutro = capitalizarNome(r.registrado_por_nome);
   return `${r.servico_notavel}${passo ? ` (${passo})` : ''}, `
-    + `${r.trecho} / KM ${descreverKm(r)}`
+    + [r.trecho, textoDoKm(r)].filter(Boolean).join(' / ')
     + `${estaca ? `, estaca ${estaca}` : ''}`
     + `${via ? `, via ${via}` : ''}`
     + `${medicao ? ` - ${medicao}` : ''}`

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="verificando">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Gestão · Painel RDO cbm</title>
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="img/favicon-192.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/estilo.css">
+<link rel="stylesheet" href="css/visual.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
+</head>
+<body>
+
+<div id="tela-carregando" aria-live="polite">
+  <img class="logo-login" src="img/logo-barbosa-mello.webp" alt="Construtora Barbosa Mello">
+  <div class="girando" role="status" aria-label="Carregando"></div>
+</div>
+
+<div id="tela-negado" class="tela-acesso" hidden>
+  <img class="logo-login" src="img/logo-barbosa-mello.webp" alt="Construtora Barbosa Mello">
+  <div class="caixa-login">
+    <h1>Acesso restrito</h1>
+    <p class="sub" id="texto-negado">Esta página é exclusiva do administrador do painel.</p>
+    <a class="primario botao-link" href="index.html">Voltar ao painel</a>
+  </div>
+</div>
+
+<div id="pagina-admin" class="moldura moldura-solta" hidden>
+  <nav class="trilho" aria-label="Páginas do painel">
+    <span class="trilho-logo"><img src="img/icone-branco.png" alt=""></span>
+    <a class="trilho-pagina" href="index.html" title="Painel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg><span>Painel</span></a>
+    <div class="trilho-rodape">
+      <a class="trilho-pagina" href="movimentacoes.html" title="Movimentações"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Movim.</span></a>
+      <a class="trilho-pagina ativo" href="gestao.html" title="Gestão" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1M16 3.5a4 4 0 0 1 0 8M22 21v-1a5 5 0 0 0-3.5-4.8"/></svg><span>Gestão</span></a>
+      <a class="trilho-pagina" id="link-dados" href="dados_obra.html" title="Dados da obra" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span>Dados</span></a>
+      <button type="button" class="trilho-sair" id="botao-sair" title="Sair"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg><span>Sair</span></button>
+    </div>
+  </nav>
+  <header class="topo">
+    <div class="marca">
+      <img class="logo-completa" src="img/icone-branco.png" alt="Construtora Barbosa Mello">
+      <img class="logo-icone" src="img/icone-branco.png" alt="Barbosa Mello">
+      <h1 id="titulo-gestao">Gestão do painel</h1>
+    </div>
+    <div class="usuario">
+      <button class="sair" id="botao-tema" title="Alternar tema claro/escuro"></button>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>Resumo</h2>
+      <p class="aviso-papel" id="aviso-papel" hidden></p>
+      <div class="grade-kpi">
+        <div class="kpi"><div class="valor" id="kpi-contas">—</div><div class="rotulo">contas</div></div>
+        <div class="kpi"><div class="valor" id="kpi-app">—</div><div class="rotulo">usam o app</div></div>
+        <div class="kpi"><div class="valor" id="kpi-painel">—</div><div class="rotulo">acessam o painel</div></div>
+        <div class="kpi alerta"><div class="valor" id="kpi-pendentes">—</div><div class="rotulo">bloqueados ou sem acesso</div></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Usuários</h2>
+      <div class="barra-filtros barra-gestao">
+        <div class="campo campo-busca">
+          <label for="busca-usuario">Buscar</label>
+          <input type="search" id="busca-usuario" placeholder="Nome, e-mail ou matrícula" autocomplete="off">
+        </div>
+        <div class="campo" id="campo-filtro-filial">
+          <label for="filtro-filial-usuario">Filial</label>
+          <select id="filtro-filial-usuario"><option value="">Todas</option></select>
+        </div>
+        <div class="campo">
+          <label for="filtro-acesso-usuario">Acesso</label>
+          <select id="filtro-acesso-usuario">
+            <option value="">Todos</option>
+            <option value="app">Usa o app</option>
+            <option value="supervisor">Supervisores</option>
+            <option value="painel">Acessa o painel</option>
+            <option value="admin">Administradores</option>
+            <option value="trocar">Troca de senha pendente</option>
+            <option value="bloqueado">Bloqueados</option>
+            <option value="sem">Sem acesso</option>
+          </select>
+        </div>
+        <button type="button" class="secundario botao-pdf" id="botao-novo-usuario">+ Novo usuário</button>
+        <span class="status-atualizacao" id="status-gestao"></span>
+      </div>
+      <div class="secao">
+        <h2>Contas <span class="contagem" id="contagem-usuarios"></span></h2>
+        <div class="wrap-tabela">
+          <table class="tabela-atividades tabela-admin tabela-usuarios">
+            <thead>
+              <tr>
+                <th>Usuário</th>
+                <th>Matrícula</th>
+                <th>Acessos</th>
+                <th>Filial</th>
+                <th>Último login</th>
+                <th>Situação</th>
+                <th><span class="sr-only">Ações</span></th>
+              </tr>
+            </thead>
+            <tbody id="corpo-usuarios">
+              <tr><td colspan="7" class="carregando">Carregando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Filiais</h2>
+      <div class="secao">
+        <h2>Obras cadastradas <span class="contagem" id="contagem-filiais"></span></h2>
+        <p class="pdf-explicacao" id="explicacao-filiais">Cada pessoa do app pertence a uma filial e só vê e grava dados dela. Gestor do painel sem filial vê todas. Em cada obra, você decide o que o ADM da obra pode fazer.</p>
+        <div class="grade-filiais" id="lista-filiais"><div class="carregando">Carregando…</div></div>
+        <button type="button" class="expandir" id="botao-nova-filial">+ Nova filial</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="rodape">
+    <span>Desenvolvido por <strong>Gabriel Ferreira</strong></span>
+    <span>Página restrita ao administrador</span>
+  </footer>
+</div>
+
+<dialog id="dialogo-usuario" class="dialogo-pdf dialogo-editar" aria-labelledby="titulo-dialogo-usuario">
+  <h2 id="titulo-dialogo-usuario">Novo usuário</h2>
+  <p class="pdf-explicacao" id="info-dialogo-usuario"></p>
+  <form id="form-usuario" autocomplete="off">
+    <div class="grade-editar">
+      <div class="campo largo"><label for="us-nome">Nome completo</label><input id="us-nome" required maxlength="120"></div>
+      <div class="campo largo"><label for="us-email">E-mail</label><input id="us-email" type="email" required maxlength="160"></div>
+    </div>
+
+    <fieldset class="bloco-acesso">
+      <legend><label><input type="checkbox" id="us-app"> Usa o app RDO</label></legend>
+      <div class="grade-editar" id="campos-app">
+        <div class="campo"><label for="us-matricula">Matrícula</label><input id="us-matricula" inputmode="numeric" maxlength="20" placeholder="ex.: 051395"></div>
+        <div class="campo"><label for="us-filial">Filial</label><select id="us-filial"></select></div>
+        <div class="campo largo">
+          <span class="rotulo-campo">Função no app</span>
+          <div class="opcoes-linha">
+            <label><input type="radio" name="us-funcao" value="encarregado" checked> Encarregado</label>
+            <label><input type="radio" name="us-funcao" value="supervisor"> Supervisor</label>
+          </div>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="bloco-acesso">
+      <legend><label><input type="checkbox" id="us-painel"> Acessa o painel de gestão</label></legend>
+      <div class="grade-editar" id="campos-painel">
+        <div class="campo largo"><label for="us-filial-painel">Dados que vê no painel</label><select id="us-filial-painel"></select></div>
+        <div class="campo largo" id="campo-admin">
+          <label for="us-admin">Administração</label>
+          <select id="us-admin">
+            <option value="">Nenhuma</option>
+            <option value="obra">ADM da obra (administra só a filial escolhida acima)</option>
+            <option value="geral">ADMapp (gestor geral, todas as filiais)</option>
+          </select>
+        </div>
+      </div>
+    </fieldset>
+  </form>
+  <p class="aviso-edicao" id="aviso-usuario"></p>
+  <div class="erro-acesso pdf-erro" id="erro-usuario" hidden></div>
+  <div class="pdf-botoes">
+    <button type="button" class="secundario" id="cancelar-usuario">Cancelar</button>
+    <button type="button" class="primario" id="salvar-usuario">Salvar</button>
+  </div>
+</dialog>
+
+<dialog id="dialogo-senha" class="dialogo-pdf" aria-labelledby="titulo-dialogo-senha">
+  <h2 id="titulo-dialogo-senha">Senha provisória</h2>
+  <p class="pdf-explicacao" id="info-dialogo-senha"></p>
+  <div class="senha-gerada">
+    <code id="senha-gerada"></code>
+    <button type="button" class="secundario" id="copiar-senha">Copiar senha</button>
+  </div>
+  <div class="campo">
+    <label for="mensagem-senha">Mensagem pronta para enviar</label>
+    <textarea id="mensagem-senha" rows="7" readonly></textarea>
+  </div>
+  <p class="aviso-edicao">A senha aparece só agora. Depois de fechar, ela não pode ser vista de novo, só gerar outra.</p>
+  <div class="pdf-botoes">
+    <button type="button" class="secundario" id="copiar-mensagem">Copiar mensagem</button>
+    <button type="button" class="primario" id="fechar-senha">Fechar</button>
+  </div>
+</dialog>
+
+<dialog id="dialogo-confirmar" class="dialogo-pdf" aria-labelledby="titulo-confirmar">
+  <h2 id="titulo-confirmar"></h2>
+  <p class="pdf-explicacao" id="texto-confirmar"></p>
+  <div class="erro-acesso pdf-erro" id="erro-confirmar" hidden></div>
+  <div class="pdf-botoes">
+    <button type="button" class="secundario" id="cancelar-confirmar">Cancelar</button>
+    <button type="button" class="primario" id="ok-confirmar"></button>
+  </div>
+</dialog>
+
+<dialog id="dialogo-filial" class="dialogo-pdf dialogo-editar" aria-labelledby="titulo-dialogo-filial">
+  <h2 id="titulo-dialogo-filial">Nova filial</h2>
+  <form id="form-filial" autocomplete="off">
+    <div class="grade-editar">
+      <div class="campo"><label for="fi-id">Código</label><input id="fi-id" required maxlength="30" placeholder="ex.: 010152"></div>
+      <div class="campo"><label for="fi-nome">Nome</label><input id="fi-nome" required maxlength="120" placeholder="ex.: Obra BR-101 Norte"></div>
+      <div class="campo largo" id="campo-copiar-config"><label for="fi-copiar">Copiar a configuração de</label><select id="fi-copiar"></select></div>
+    </div>
+    <fieldset class="bloco-acesso">
+      <legend>O que o ADM desta obra pode fazer</legend>
+      <div class="lista-permissoes">
+        <label><input type="checkbox" id="fi-perm-usuarios"> Gerenciar os usuários da obra <small>criar, editar, senha provisória e bloquear</small></label>
+        <label><input type="checkbox" id="fi-perm-registros"> Corrigir e excluir registros e fotos da obra</label>
+        <label><input type="checkbox" id="fi-perm-dados"> Atualizar serviços, estacas, KM e mapas <small>enviar os CSVs e os mapas da obra pela página Dados da obra</small></label>
+      </div>
+    </fieldset>
+    <fieldset class="bloco-acesso">
+      <legend>Local dos registros</legend>
+      <div class="lista-permissoes">
+        <label><input type="checkbox" id="fi-usa-km"> Esta obra usa KM <small>desmarcado, o encarregado registra só o trecho e a estaca</small></label>
+      </div>
+    </fieldset>
+    <details class="config-filial" id="detalhes-config-filial">
+      <summary>Configuração da obra (avançado)</summary>
+      <p class="aviso-edicao">É o que o app baixa depois do login: fuso UTM, vias, trechos sem via, estaca ou KM, mapas e descrições das atividades. Só altere se souber o que está mudando.</p>
+      <textarea id="fi-config" rows="12" spellcheck="false"></textarea>
+    </details>
+  </form>
+  <div class="erro-acesso pdf-erro" id="erro-filial" hidden></div>
+  <div class="pdf-botoes">
+    <button type="button" class="secundario" id="cancelar-filial">Cancelar</button>
+    <button type="button" class="primario" id="salvar-filial">Salvar</button>
+  </div>
+</dialog>
+
+<div class="aviso-flutuante" id="aviso-flutuante" role="status" hidden></div>
+
+<script src="js/config.js"></script>
+<script src="js/utilidades.js"></script>
+<script src="js/tema.js"></script>
+<script src="js/uso_painel.js"></script>
+<script src="js/gestao.js"></script>
+</body>
+</html>

@@ -7,12 +7,16 @@
 <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="img/favicon-192.png">
 <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="css/estilo.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
+<link rel="stylesheet" href="css/visual.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" integrity="sha384-NrKB+u6Ts6AtkIhwPixiKTzgSKNblyhlk0Sohlgar9UHUBzai/sgnNNWWd291xqt" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js" integrity="sha384-WaInCl5qKhXVwIIJ/XMxRvjzCTIkZ1uH9Evm3mNtVtfXWhJGU3EkedDBaf/037Ew" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -74,31 +78,36 @@
 </div>
 
 <div id="dashboard">
+  <nav class="trilho" id="menu-secoes" aria-label="Seções do painel">
+    <span class="trilho-logo"><img src="img/icone-branco.png" alt=""></span>
+    <a href="#secao-filtros" title="Filtros"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8.5V19l-4 2v-7.5z"/></svg><span>Filtros</span></a>
+    <a href="#secao-indicadores" title="Indicadores"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20v-7M12 20V4M19 20v-11"/></svg><span>Indicadores</span></a>
+    <a href="#secao-atividades" title="Atividades"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg><span>Atividades</span></a>
+    <a href="#secao-fotos" title="Fotos"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg><span>Fotos</span></a>
+    <a href="#secao-mapa" title="Mapa"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14"/></svg><span>Mapa</span></a>
+    <div class="trilho-rodape">
+      <a class="trilho-pagina" id="link-admin" href="movimentacoes.html" title="Movimentações" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Movim.</span></a>
+      <a class="trilho-pagina" id="link-gestao" href="gestao.html" title="Gestão" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1M16 3.5a4 4 0 0 1 0 8M22 21v-1a5 5 0 0 0-3.5-4.8"/></svg><span>Gestão</span></a>
+      <a class="trilho-pagina" id="link-dados" href="dados_obra.html" title="Dados da obra" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span>Dados</span></a>
+      <button type="button" class="trilho-sair" id="botao-sair" title="Sair"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg><span>Sair</span></button>
+    </div>
+  </nav>
+  <div class="moldura">
   <header class="topo">
     <div class="marca">
-      <img class="logo-completa" src="img/logo-barbosa-mello.webp" alt="Construtora Barbosa Mello">
+      <!-- <img class="logo-completa" src="img/logo-barbosa-mello.webp" alt="Construtora Barbosa Mello"> -->
       <img class="logo-icone" src="img/icone-branco.png" alt="Barbosa Mello">
       <h1>Painel de Gestão  RDO cbm</h1>
     </div>
-    <nav class="menu-secoes" id="menu-secoes" aria-label="Seções do painel">
-      <a href="#secao-filtros">Filtros</a>
-      <a href="#secao-indicadores">Indicadores</a>
-      <a href="#secao-resumo">Resumo</a>
-      <a href="#secao-mapa">Mapa</a>
-      <a href="#secao-atividades">Atividades</a>
-      <a href="#secao-fotos">Fotos</a>
-    </nav>
     <div class="usuario">
       <span id="nome-usuario"></span>
-      <a class="sair" id="link-admin" href="movimentacoes.html" hidden>Movimentações</a>
       <button class="sair" id="botao-tema" title="Alternar tema claro/escuro"></button>
-      <button class="sair" id="botao-sair">Sair</button>
     </div>
   </header>
 
   <main>
-    <section id="secao-filtros" class="bloco-navegavel">
-    <h2>Filtros:</h2>
+    <section id="secao-filtros" class="bloco-navegavel painel-filtros">
+    <h2>Filtros</h2>
     <div class="atalhos-periodo" id="atalhos-periodo" role="group" aria-label="Período">
       <button type="button" data-periodo="hoje">Hoje</button>
       <button type="button" data-periodo="7dias">Últimos 7 dias</button>
@@ -142,6 +151,13 @@
         <label for="filtro-servico">Serviço</label>
         <select id="filtro-servico" multiple data-todos="Todos"></select>
       </div>
+      <div class="campo campo-ordem">
+        <span class="rotulo-campo" id="rotulo-ordem">Ordem</span>
+        <div class="ordem-data" id="ordem-data" role="group" aria-labelledby="rotulo-ordem">
+          <button type="button" data-ordem="desc" class="ativo" aria-pressed="true">↓ Mais recentes</button>
+          <button type="button" data-ordem="asc" aria-pressed="false">↑ Mais antigos</button>
+        </div>
+      </div>
       <button class="secundario" id="botao-atualizar">Atualizar</button>
       <button class="secundario botao-pdf" id="botao-exportar-pdf">Exportar PDF</button>
       <button class="secundario" id="botao-limpar-filtros" hidden>Limpar filtros</button>
@@ -149,6 +165,7 @@
     </div>
     </section>
 
+    <div class="conteudo-painel">
     <section id="secao-indicadores" class="bloco-navegavel">
       <h2>Indicadores KPI</h2>
     <div class="grade-kpi" id="grade-kpi">
@@ -157,9 +174,6 @@
       <div class="kpi"><div class="valor" id="kpi-encarregados">—</div><div class="rotulo">encarregados ativos</div></div>
       <div class="kpi alerta"><div class="valor" id="kpi-faltantes">—</div><div class="rotulo">sem apontamento hoje</div></div>
     </div>
-    </section>
-
-    <section id="secao-resumo" class="bloco-navegavel">
     <div class="duas-colunas">
       <div class="secao">
         <h2>Registros por dia <span class="contagem" id="periodo-grafico"></span></h2>
@@ -177,7 +191,7 @@
     <div class="secao">
       <h2>Onde as atividades foram feitas <span class="contagem" id="contagem-mapa"></span></h2>
       <div class="explicacao-mapa">
-        <p>O mapa mostra a localização das atividades que estão filtradas acima (período, trecho, encarregado etc.).</p>
+        <p>O mapa mostra a localização das atividades que estão filtradas (período, trecho, encarregado etc.).</p>
         <details id="detalhes-mapa">
         <summary>Como ler o mapa</summary>
         <ul>
@@ -212,7 +226,7 @@
               <th>Data/hora</th>
               <th>Encarregado</th>
               <th>Trecho</th>
-              <th>KM / Estaca</th>
+              <th id="th-local">KM / Estaca</th>
               <th>Serviço</th>
               <th>Medição</th>
               <th class="col-acoes"><span class="sr-only">Ações</span></th>
@@ -235,6 +249,7 @@
       <button class="expandir" id="botao-mais-fotos" hidden></button>
     </div>
     </section>
+    </div>
   </main>
 
   <footer class="rodape">
@@ -242,6 +257,7 @@
     <span>Dúvidas ou sugestões:
       <a href="mailto:gabriel.ferreira@cbmsa.com.br">gabriel.ferreira@cbmsa.com.br</a></span>
   </footer>
+  </div>
 </div>
 
 <dialog id="dialogo-pdf" class="dialogo-pdf" aria-labelledby="titulo-dialogo-pdf">
@@ -328,12 +344,47 @@
   </div>
 </dialog>
 
+<dialog id="dialogo-editar-registro" class="dialogo-pdf dialogo-editar" aria-labelledby="titulo-editar-registro">
+  <h2 id="titulo-editar-registro">Editar registro</h2>
+  <p class="pdf-explicacao" id="info-editar-registro"></p>
+  <form id="form-editar-registro" class="grade-editar" autocomplete="off">
+    <div class="carregando largo" id="carregando-listas-edicao" hidden>Carregando as listas da obra…</div>
+    <div class="campo largo"><label for="ed-trecho">Trecho</label><select id="ed-trecho" required></select></div>
+    <div class="campo" id="campo-ed-km"><label for="ed-km">KM</label><select id="ed-km"></select></div>
+    <div class="campo" id="campo-ed-via"><label for="ed-via">Via</label><select id="ed-via"></select></div>
+    <div class="campo" id="campo-ed-estaca-inicial"><label for="ed-estaca-inicial">Estaca inicial</label><select id="ed-estaca-inicial"></select></div>
+    <div class="campo" id="campo-ed-estaca-final"><label for="ed-estaca-final">Estaca final</label><select id="ed-estaca-final"></select></div>
+    <div class="campo largo"><label for="ed-atividade">Atividade</label><select id="ed-atividade" required></select></div>
+    <div class="campo largo"><label for="ed-servico">Serviço</label><select id="ed-servico" required></select></div>
+    <div class="campo largo" id="campo-ed-passo"><label for="ed-passo">Passo</label><select id="ed-passo"></select></div>
+    <div class="campo"><label for="ed-quantidade">Medição</label><input id="ed-quantidade" inputmode="decimal" placeholder="ex.: 120,5"></div>
+    <div class="campo"><label for="ed-unidade">Unidade</label><select id="ed-unidade"></select></div>
+    <div class="campo largo"><label for="ed-descricao">Descrição</label><textarea id="ed-descricao" rows="2"></textarea></div>
+  </form>
+  <p class="aviso-edicao aviso-fora-da-lista" id="aviso-fora-da-lista" hidden></p>
+  <p class="aviso-edicao">Data, hora, localização e quem lançou não mudam. A correção vai para o celular de quem tirou as fotos, que refaz o carimbo na próxima sincronização.</p>
+  <div class="erro-acesso pdf-erro" id="erro-editar-registro" hidden></div>
+  <div class="pdf-botoes">
+    <button type="button" class="secundario" id="cancelar-editar-registro">Cancelar</button>
+    <button type="button" class="primario" id="salvar-editar-registro">Salvar correção</button>
+  </div>
+</dialog>
+
 <div class="aviso-flutuante" id="aviso-flutuante" role="status" hidden></div>
 
 <div id="lightbox" role="dialog" aria-modal="true" aria-label="Foto ampliada">
   <button class="fechar" id="fechar-lightbox" aria-label="Fechar (Esc)">&times;</button>
-  <button type="button" class="botao-excluir-foto" id="lightbox-excluir" hidden>Excluir foto</button>
+  <div class="barra-lightbox">
+    <div class="seletor-carimbo" id="seletor-carimbo" role="group" aria-label="Versão da foto" hidden>
+      <button type="button" data-carimbo="com" aria-pressed="true">Com carimbo</button>
+      <button type="button" data-carimbo="sem" aria-pressed="false">Sem carimbo</button>
+    </div>
+    <button type="button" class="botao-editar-registro-foto" id="lightbox-editar" hidden>Editar registro</button>
+    <button type="button" class="botao-excluir-foto" id="lightbox-excluir" hidden>Excluir foto</button>
+  </div>
   <button class="nav-foto anterior" id="lightbox-anterior" aria-label="Foto anterior (←)">&#8249;</button>
+  <button type="button" class="previa-foto previa-anterior" id="previa-anterior" aria-label="Ver a foto anterior" hidden><img alt=""></button>
+  <button type="button" class="previa-foto previa-proxima" id="previa-proxima" aria-label="Ver a próxima foto" hidden><img alt=""></button>
   <figure class="lightbox-conteudo">
     <img id="lightbox-img" src="" alt="">
     <figcaption id="lightbox-legenda"></figcaption>
@@ -356,6 +407,8 @@
 <script src="js/relatorio_pdf.js"></script>
 <script src="js/relatorio_trecho.js"></script>
 <script src="js/excluir_foto.js"></script>
+<script src="js/foto_versoes.js"></script>
+<script src="js/editar_registro.js"></script>
 <script src="js/principal.js"></script>
 </body>
 </html>

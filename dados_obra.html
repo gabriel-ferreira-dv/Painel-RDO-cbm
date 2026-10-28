@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="verificando">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Dados da obra · Painel RDO cbm</title>
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="img/favicon-192.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/estilo.css">
+<link rel="stylesheet" href="css/visual.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
+</head>
+<body>
+
+<div id="tela-carregando" aria-live="polite">
+  <img class="logo-login" src="img/logo-barbosa-mello.webp" alt="Construtora Barbosa Mello">
+  <div class="girando" role="status" aria-label="Carregando"></div>
+</div>
+
+<div id="tela-negado" class="tela-acesso" hidden>
+  <img class="logo-login" src="img/logo-barbosa-mello.webp" alt="Construtora Barbosa Mello">
+  <div class="caixa-login">
+    <h1>Acesso restrito</h1>
+    <p class="sub" id="texto-negado">Esta página é exclusiva de quem administra os dados da obra.</p>
+    <a class="primario botao-link" href="index.html">Voltar ao painel</a>
+  </div>
+</div>
+
+<div id="pagina-admin" class="moldura moldura-solta" hidden>
+  <nav class="trilho" aria-label="Páginas do painel">
+    <span class="trilho-logo"><img src="img/icone-branco.png" alt=""></span>
+    <a class="trilho-pagina" href="index.html" title="Painel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg><span>Painel</span></a>
+    <div class="trilho-rodape">
+      <a class="trilho-pagina" href="movimentacoes.html" title="Movimentações"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Movim.</span></a>
+      <a class="trilho-pagina" id="link-gestao" href="gestao.html" title="Gestão" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1M16 3.5a4 4 0 0 1 0 8M22 21v-1a5 5 0 0 0-3.5-4.8"/></svg><span>Gestão</span></a>
+      <a class="trilho-pagina ativo" href="dados_obra.html" title="Dados da obra" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span>Dados</span></a>
+      <button type="button" class="trilho-sair" id="botao-sair" title="Sair"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg><span>Sair</span></button>
+    </div>
+  </nav>
+  <header class="topo">
+    <div class="marca">
+      <img class="logo-completa" src="img/icone-branco.png" alt="Construtora Barbosa Mello">
+      <img class="logo-icone" src="img/icone-branco.png" alt="Barbosa Mello">
+      <h1 id="titulo-dados">Dados da obra</h1>
+    </div>
+    <div class="usuario">
+      <button class="sair" id="botao-tema" title="Alternar tema claro/escuro"></button>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>Arquivos do projeto</h2>
+      <p class="aviso-papel" id="aviso-papel" hidden></p>
+      <div class="barra-filtros barra-gestao">
+        <div class="campo" id="campo-obra-dados">
+          <label for="obra-dados">Obra</label>
+          <select id="obra-dados"></select>
+        </div>
+        <span class="status-atualizacao" id="status-dados"></span>
+      </div>
+      <div class="secao">
+        <h2>Serviços, estacas, KM e mapas <span class="contagem" id="contagem-dados"></span></h2>
+        <p class="pdf-explicacao">Edite o CSV aqui mesmo ou envie o arquivo novo: ele substitui o atual só nesta obra e a versão sobe. Os CSVs chegam ao app sozinhos na próxima abertura com internet; os mapas aparecem na tela de Atualizações do app, e cada pessoa confirma o download. O mapa do painel passa a usar o arquivo novo na hora.</p>
+        <div class="wrap-tabela">
+          <table class="tabela-atividades tabela-admin tabela-usuarios tabela-dados-obra">
+            <thead>
+              <tr>
+                <th>Arquivo</th>
+                <th>Tipo</th>
+                <th>Versão</th>
+                <th>Atualizado</th>
+                <th><span class="sr-only">Ações</span></th>
+              </tr>
+            </thead>
+            <tbody id="corpo-dados">
+              <tr><td colspan="5" class="carregando">Carregando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <details class="config-filial ajuda-dados">
+        <summary>Como preparar os arquivos</summary>
+        <ul class="lista-ajuda-dados">
+          <li><b>Editar</b>: abre o CSV atual numa tabela para corrigir, incluir ou excluir linhas, ou importar um CSV ou uma planilha do Excel (.xlsx). Ao salvar, o arquivo é conferido e sobe como nova versão.</li>
+          <li><b>CSV</b>: separado por ponto e vírgula (;) e salvo em UTF-8. No Excel: Salvar como → "CSV UTF-8 (delimitado por vírgulas)". A primeira linha é o cabeçalho, com as mesmas colunas do arquivo atual.</li>
+          <li><b>SevNotaveis.csv</b>: Atividade; Serviço notável; Serviço correlato (passo); Trecho.</li>
+          <li><b>KMxEst.csv</b>: Trecho; Estaca; KM; KM resumido.</li>
+          <li><b>estacas_coords.csv</b>: Trecho; Estaca; UTM E; UTM N (no fuso da obra, vírgula ou ponto decimal).</li>
+          <li><b>Mapa</b>: um .zip com os tiles .webp com nome linha_coluna (00_0.webp, 00_1.webp…), soltos na raiz do zip ou dentro de uma única pasta. A grade (linhas x colunas) e a área do mapa vêm da configuração da obra: se mudarem, o ADMapp ajusta a configuração antes.</li>
+        </ul>
+      </details>
+    </section>
+  </main>
+
+  <footer class="rodape">
+    <span>Desenvolvido por <strong>Gabriel Ferreira</strong></span>
+    <span>Página restrita aos administradores</span>
+  </footer>
+</div>
+
+<dialog id="dialogo-envio" class="dialogo-pdf dialogo-editar" aria-labelledby="titulo-dialogo-envio">
+  <h2 id="titulo-dialogo-envio">Enviar arquivo</h2>
+  <p class="pdf-explicacao" id="info-dialogo-envio"></p>
+  <div class="campo">
+    <label for="arquivo-envio">Arquivo</label>
+    <input type="file" id="arquivo-envio">
+  </div>
+  <ul class="resultado-validacao" id="resultado-validacao" hidden></ul>
+  <div class="pdf-progresso" id="progresso-envio" hidden>
+    <span id="texto-progresso-envio">Enviando…</span>
+    <progress id="barra-progresso-envio" max="1" value="0"></progress>
+  </div>
+  <div class="erro-acesso pdf-erro" id="erro-envio" hidden></div>
+  <div class="pdf-botoes">
+    <button type="button" class="secundario" id="cancelar-envio">Cancelar</button>
+    <button type="button" class="primario" id="confirmar-envio" disabled>Enviar e subir a versão</button>
+  </div>
+</dialog>
+
+<dialog id="dialogo-editor-csv" class="dialogo-pdf dialogo-editor-csv" aria-labelledby="titulo-editor-csv">
+  <h2 id="titulo-editor-csv">Editar arquivo</h2>
+  <p class="pdf-explicacao" id="info-editor-csv"></p>
+  <div class="ferramentas-editor-csv">
+    <input type="search" id="busca-editor-csv" placeholder="Procurar nas linhas…" aria-label="Procurar nas linhas">
+    <label class="pdf-opcao"><input type="checkbox" id="so-problemas-csv"> Só linhas com problema</label>
+    <span class="espaco-editor-csv"></span>
+    <button type="button" class="botao-editar-registro" id="nova-linha-csv">+ Linha</button>
+    <button type="button" class="botao-editar-registro" id="importar-csv">Importar CSV ou Excel</button>
+    <input type="file" id="arquivo-importar-csv" accept=".csv,.txt,.xlsx,.xls,.ods,text/csv" hidden>
+  </div>
+  <div class="barra-importacao-csv" id="barra-importacao-csv" hidden>
+    <span id="texto-importacao-csv"></span>
+    <div class="acoes-importacao-csv">
+      <button type="button" class="primario" id="substituir-importacao-csv">Substituir tudo</button>
+      <button type="button" class="secundario" id="acrescentar-importacao-csv">Acrescentar no fim</button>
+      <button type="button" class="secundario" id="cancelar-importacao-csv">Cancelar</button>
+    </div>
+  </div>
+  <div class="wrap-editor-csv">
+    <table class="tabela-editor-csv">
+      <thead id="cabeca-editor-csv"></thead>
+      <tbody id="corpo-editor-csv"></tbody>
+    </table>
+  </div>
+  <div class="paginacao-editor-csv">
+    <button type="button" class="botao-editar-registro" id="anterior-editor-csv">‹ Anterior</button>
+    <span id="pagina-editor-csv"></span>
+    <button type="button" class="botao-editar-registro" id="proxima-editor-csv">Próxima ›</button>
+  </div>
+  <p class="dica-editor-csv">Dá para colar várias linhas copiadas do Excel a partir da célula escolhida. Enter desce para a linha de baixo. Ponto e vírgula dentro de uma célula vira vírgula ao salvar.</p>
+  <ul class="resultado-validacao" id="validacao-editor-csv" hidden></ul>
+  <div class="pdf-progresso" id="progresso-editor-csv" hidden>
+    <span id="texto-progresso-editor-csv">Enviando…</span>
+    <progress id="barra-progresso-editor-csv" max="1" value="0"></progress>
+  </div>
+  <div class="pdf-botoes botoes-editor-csv">
+    <span class="estado-editor-csv" id="estado-editor-csv"></span>
+    <button type="button" class="secundario" id="fechar-editor-csv">Fechar</button>
+    <button type="button" class="secundario" id="baixar-editor-csv">Baixar CSV</button>
+    <button type="button" class="primario" id="salvar-editor-csv">Salvar e subir a versão</button>
+  </div>
+</dialog>
+
+<div class="aviso-flutuante" id="aviso-flutuante" role="status" hidden></div>
+
+<script src="js/config.js"></script>
+<script src="js/utilidades.js"></script>
+<script src="js/tema.js"></script>
+<script src="js/uso_painel.js"></script>
+<script src="js/dados_obra.js"></script>
+<script src="js/editor_csv.js"></script>
+</body>
+</html>

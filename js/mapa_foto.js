@@ -29,8 +29,8 @@ function pontoDaFoto(foto) {
 async function trechoDoRegistroNoMapa(r) {
   if (!r) return [];
   try {
-    const porTrecho = await carregarEstacasDoProjeto();
-    return estacasDoIntervaloMapa(r, porTrecho).map(e => [e.ponto.lat, e.ponto.lng]);
+    const porFilial = await estacasDosRegistros([r]);
+    return estacasDoIntervaloMapa(r, porFilial).map(e => [e.ponto.lat, e.ponto.lng]);
   } catch {
     return [];
   }
@@ -49,7 +49,7 @@ async function abrirMapaDaObra() {
 
   document.getElementById('info-mapa-foto').innerHTML = r
     ? `<b>${escaparHtml(descreverServico(r))}</b> · ${escaparHtml(r.encarregado)} · ${formatarDataHora(foto.criado_em)}<br>`
-      + `${escaparHtml(r.trecho)}${r.via ? ' · ' + escaparHtml(r.via) : ''} · KM ${escaparHtml(descreverKm(r))} · Estaca ${escaparHtml(descreverEstaca(r))}`
+      + escaparHtml([`${r.trecho}${r.via ? ' · ' + r.via : ''}`, descreverLocal(r, 'Estaca')].filter(Boolean).join(' · '))
     : formatarDataHora(foto.criado_em);
 
   const dialogo = document.getElementById('dialogo-mapa-foto');

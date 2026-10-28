@@ -38,6 +38,7 @@ let usuarioTrocandoSenha = null;
 function mostrarTrocaSenha(user) {
   usuarioTrocandoSenha = user;
   document.getElementById('tela-login').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'none';
   document.getElementById('tela-troca-senha').hidden = false;
   document.getElementById('troca-nome').textContent = user.nomeExibicao || user.email;
   document.getElementById('input-nova-senha').focus();
@@ -74,12 +75,24 @@ function mensagemErroTroca(err) {
 
 async function sair() {
   await registrarUsoComLimite('saiu');
-  try { sessionStorage.removeItem('uso-acesso'); } catch {}
+  try { sessionStorage.removeItem('uso-acesso'); sessionStorage.removeItem('papel-admin'); } catch {}
   await sb.auth.signOut();
   location.reload();
 }
 
+function mostrarCascaDoPainel(mostrar) {
+  document.getElementById('tela-login').style.display = mostrar ? 'none' : '';
+  document.getElementById('dashboard').style.display = mostrar ? 'block' : 'none';
+}
+
 async function restaurarSessao() {
+  const adiantado = temSessaoGuardada();
+  let entrou = false;
+  if (adiantado) {
+    adiantarLinksDoPapel();
+    mostrarCascaDoPainel(true);
+    document.documentElement.classList.remove('verificando');
+  }
   try {
     const { data } = await sb.auth.getSession();
     const user = data.session?.user;
@@ -90,10 +103,12 @@ async function restaurarSessao() {
       return;
     }
     registrarAcesso('sessao');
+    entrou = true;
     entrarNoPainel({ ...user, nomeExibicao: acesso.nome, trocarSenha: acesso.trocarSenha });
   } catch (e) {
     console.error('Não foi possível confirmar o acesso:', e);
   } finally {
+    if (adiantado && !entrou) mostrarCascaDoPainel(false);
     document.documentElement.classList.remove('verificando');
   }
 }

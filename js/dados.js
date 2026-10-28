@@ -1,5 +1,12 @@
 const TAMANHO_PAGINA = 1000;
 
+let matriculasEncarregadosPainel = null;
+
+function ehEncarregadoDoPainel(r) {
+  return !matriculasEncarregadosPainel
+    || matriculasEncarregadosPainel.has(String(r.usuario_matricula || '').trim());
+}
+
 async function buscarTodasAsLinhas(montarConsulta) {
   const linhas = [];
   while (linhas.length < LIMITE_LINHAS) {
@@ -26,7 +33,7 @@ async function carregarTudo() {
   const trintaDiasAtras = new Date(); trintaDiasAtras.setDate(trintaDiasAtras.getDate() - 30);
 
   try {
-    const [registros, fotos, ativos] = await Promise.all([
+    const [registros, fotos, ativos, encarregados] = await Promise.all([
       buscarTodasAsLinhas(() => sb
         .from('registros_app')
         .select('*')
@@ -47,6 +54,7 @@ async function carregarTudo() {
         .gte('criado_em', inicioDoDia(trintaDiasAtras).toISOString())
         .order('criado_em', { ascending: false })
         .order('id', { ascending: false })),
+      matriculasDosEncarregados(),
     ]);
 
     padronizarEncarregados([...registros, ...ativos]);
@@ -55,16 +63,39 @@ async function carregarTudo() {
     cacheFotos = fotos.filter(f => f.excluida !== true);
     periodoCarregado = { inicio, fim };
 
+    matriculasEncarregadosPainel = encarregados;
     popularSelectsDeFiltro();
-    renderizarFaltantes(ativos);
+    renderizarFaltantes(encarregados
+      ? ativos.filter(r => encarregados.has(String(r.usuario_matricula || '').trim()))
+      : ativos);
     aplicarFiltrosLocais();
 
-    status.textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR');
+    const cortados = [
+      registros.length >= LIMITE_LINHAS ? 'registros' : '',
+      fotos.length >= LIMITE_LINHAS ? 'fotos' : '',
+    ].filter(Boolean);
+    status.classList.toggle('status-limite', cortados.length > 0);
+    status.textContent = cortados.length
+      ? `Período grande demais: mostrando só os ${LIMITE_LINHAS.toLocaleString('pt-BR')} ${cortados.join(' e ')} mais recentes. Escolha um período menor para ver tudo.`
+      : 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR');
+    if (cortados.length) {
+      mostrarAvisoFlutuante(`Atenção: o período tem mais de ${LIMITE_LINHAS.toLocaleString('pt-BR')} ${cortados.join(' e ')}. Números, mapa e PDF consideram só os mais recentes.`);
+    }
   } catch (err) {
     status.textContent = '';
     document.getElementById('lista-faltantes').innerHTML = '';
     alert('Falha ao carregar dados: ' + err.message);
     console.error(err);
+  }
+}
+
+async function matriculasDosEncarregados() {
+  try {
+    const { data, error } = await sb.rpc('encarregados_do_painel');
+    if (error) return null;
+    return new Set((data || []).map(e => String(e.matricula || '').trim()).filter(Boolean));
+  } catch {
+    return null;
   }
 }
 

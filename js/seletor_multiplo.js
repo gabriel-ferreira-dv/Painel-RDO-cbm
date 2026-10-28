@@ -90,7 +90,12 @@ function criarSeletorMultiplo(select) {
       painel.style.left = 'auto';
       painel.style.right = '0';
     }
-    if (!pesquisa.hidden) pesquisa.focus();
+    const lateral = caixa.closest('.painel-filtros');
+    if (lateral && getComputedStyle(painel).position === 'static') {
+      const sobra = painel.getBoundingClientRect().bottom - lateral.getBoundingClientRect().bottom;
+      if (sobra > 0) lateral.scrollTop += sobra + 8;
+    }
+    if (!pesquisa.hidden) pesquisa.focus({ preventScroll: true });
   }
 
   function fechar() {

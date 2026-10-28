@@ -7,7 +7,7 @@ function descreverRegistroPorTrecho(r) {
   const estaca = r.estaca_inicial ? descreverEstaca(r) : '';
   const via = String(r.via || '').trim();
   return `${passo || r.servico_notavel}`
-    + `, KM ${descreverKm(r)}`
+    + `${textoDoKm(r) ? `, ${textoDoKm(r)}` : ''}`
     + `${estaca ? `, estaca ${estaca}` : ''}`
     + `${via ? `, via ${via}` : ''}.`;
 }
