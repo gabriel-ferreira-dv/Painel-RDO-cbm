@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="css/estilo.css">
 <link rel="stylesheet" href="css/visual.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -32,6 +32,16 @@
 </div>
 
 <div id="pagina-admin" class="moldura moldura-solta" hidden>
+  <nav class="trilho" aria-label="Páginas do painel">
+    <span class="trilho-logo"><img src="img/icone-branco.png" alt=""></span>
+    <a class="trilho-pagina" href="index.html" title="Painel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg><span>Painel</span></a>
+    <div class="trilho-rodape">
+      <a class="trilho-pagina ativo" href="movimentacoes.html" title="Movimentações" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Movim.</span></a>
+      <a class="trilho-pagina" id="link-gestao" href="gestao.html" title="Gestão"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1M16 3.5a4 4 0 0 1 0 8M22 21v-1a5 5 0 0 0-3.5-4.8"/></svg><span>Gestão</span></a>
+      <a class="trilho-pagina" id="link-dados" href="dados_obra.html" title="Dados da obra"><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span>Dados</span></a>
+      <button type="button" class="trilho-sair" id="botao-sair" title="Sair"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg><span>Sair</span></button>
+    </div>
+  </nav>
   <header class="topo">
     <div class="marca">
       <img class="logo-completa" src="img/icone-branco.png" alt="Construtora Barbosa Mello">
@@ -39,9 +49,7 @@
       <h1>Movimentações do painel</h1>
     </div>
     <div class="usuario">
-      <a class="sair" href="index.html">← Painel</a>
       <button class="sair" id="botao-tema" title="Alternar tema claro/escuro"></button>
-      <button class="sair" id="botao-sair">Sair</button>
     </div>
   </header>
 
@@ -81,6 +89,12 @@
             <option value="registro_excluido">Registro excluído</option>
             <option value="registro_restaurado">Registro restaurado</option>
             <option value="registro_editado">Registro corrigido</option>
+            <option value="usuario_criado">Usuário criado</option>
+            <option value="usuario_alterado">Acessos alterados</option>
+            <option value="senha_provisoria">Senha provisória</option>
+            <option value="usuario_bloqueado">Usuário bloqueado</option>
+            <option value="usuario_desbloqueado">Usuário desbloqueado</option>
+            <option value="filial_salva">Filial salva</option>
             <option value="saiu">Saiu</option>
           </select>
         </div>

@@ -31,3 +31,10 @@ function aplicarTema(tema) {
 function alternarTema() {
   aplicarTema(document.documentElement.dataset.tema === 'escuro' ? 'claro' : 'escuro');
 }
+
+function marcarTopoRolado() {
+  const topo = document.querySelector('header.topo');
+  if (topo) topo.classList.toggle('rolado', window.scrollY > 4);
+}
+
+window.addEventListener('scroll', marcarTopoRolado, { passive: true });

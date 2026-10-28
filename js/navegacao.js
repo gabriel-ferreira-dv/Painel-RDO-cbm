@@ -41,7 +41,7 @@ function abrirMapaSeNoEndereco() {
 
 function iniciarMenuSecoes() {
   const topo = document.querySelector('header.topo');
-  const links = [...document.querySelectorAll('#menu-secoes a')];
+  const links = [...document.querySelectorAll('#menu-secoes a[href^="#"]')];
   const secoes = links.map(a => document.querySelector(a.getAttribute('href')));
   const secaoMapa = document.getElementById('secao-mapa');
   const secoesDaPagina = secoes.filter(s => s !== secaoMapa);

@@ -60,11 +60,13 @@ const CamadaDoProjeto = typeof L === 'undefined' ? null : L.Layer.extend({
       .map(([x, y]) => map.layerPointToLatLng(origem.add([x, y])))
       .map(ll => ({ lat: ll.lat, lng: ll.lng }));
     const area = envelope(cantos);
-    const defs = mapasNaArea(area);
+    const todos = await mapasDasObras();
+    if (geracao !== this._geracao) return;
+    const defs = mapasNaArea(area, todos);
     if (defs.length === 0) return;
     const pontoNaTela = (p) => map.latLngToLayerPoint([p.lat, p.lng]).subtract(origem);
     const visoes = new Map();
-    const pecas = zoom >= ZOOM_DETALHE_PROJETO ? pecasDoProjetoNaArea(area) : [];
+    const pecas = zoom >= ZOOM_DETALHE_PROJETO ? pecasDoProjetoNaArea(area, defs) : [];
     const comDetalhe = pecas.length > 0 && pecas.length <= MAPA_MAX_PECAS;
 
     const desenhar = () => {
@@ -73,7 +75,7 @@ const CamadaDoProjeto = typeof L === 'undefined' ? null : L.Layer.extend({
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.globalAlpha = MAPA_OPACIDADE_PROJETO;
       for (const def of defs) {
-        const img = visoes.get(def.nome);
+        const img = visoes.get(chaveDoMapa(def));
         if (img) desenharVisaoGeral(ctx, def, img, pontoNaTela, dpr);
       }
       if (!comDetalhe) return;
@@ -93,12 +95,10 @@ const CamadaDoProjeto = typeof L === 'undefined' ? null : L.Layer.extend({
 
     const imagensGerais = await Promise.all(defs.map(visaoGeralDoMapa));
     if (geracao !== this._geracao) return;
-    defs.forEach((def, i) => { if (imagensGerais[i]) visoes.set(def.nome, imagensGerais[i]); });
+    defs.forEach((def, i) => { if (imagensGerais[i]) visoes.set(chaveDoMapa(def), imagensGerais[i]); });
     desenhar();
     if (!comDetalhe) return;
 
-    const arquivos = await arquivosDosMapas();
-    if (geracao !== this._geracao) return;
     const faltando = pecas.filter(p => !pecasEmCache.has(chavePeca(p)));
     if (faltando.length === 0) return;
     if (pecasEmCache.size + faltando.length > 800) pecasEmCache.clear();
@@ -106,9 +106,8 @@ const CamadaDoProjeto = typeof L === 'undefined' ? null : L.Layer.extend({
     for (let i = 0; i < faltando.length; i += 6) {
       if (geracao !== this._geracao) return;
       await Promise.all(faltando.slice(i, i + 6).map(async (p) => {
-        const arquivo = arquivos.get(p.def.nome);
         try {
-          const img = arquivo ? await tileDoZip(`${URL_DADOS}/${encodeURIComponent(arquivo)}`, p.linha, p.coluna) : null;
+          const img = await tileDoZip(urlDoArquivoDeDados(p.def.arquivo), p.linha, p.coluna);
           if (img) pecasEmCache.set(chavePeca(p), img);
         } catch (e) {
           console.warn('Mapa: parte do projeto falhou', p.def.nome, p.linha, p.coluna, e);
@@ -121,7 +120,7 @@ const CamadaDoProjeto = typeof L === 'undefined' ? null : L.Layer.extend({
 });
 
 function chavePeca(p) {
-  return `${p.def.nome}|${p.linha}|${p.coluna}`;
+  return `${chaveDoMapa(p.def)}|${p.linha}|${p.coluna}`;
 }
 
 function mostrarAvisoMapa(texto) {
@@ -198,7 +197,7 @@ function popupDoRegistro(r) {
   return `<div class="popup-mapa">
     <b>${escaparHtml(descreverServico(r))}</b>
     <div>${escaparHtml(r.encarregado)} · ${formatarDataHora(r.criado_em)}</div>
-    <div>${escaparHtml(r.trecho)}${r.via ? ' · ' + escaparHtml(r.via) : ''} · KM ${escaparHtml(descreverKm(r))} · Est. ${escaparHtml(descreverEstaca(r))}</div>
+    <div>${escaparHtml([`${r.trecho}${r.via ? ' · ' + r.via : ''}`, descreverLocal(r, 'Est.')].filter(Boolean).join(' · '))}</div>
     ${medicao ? `<div>Medição: ${escaparHtml(medicao)}</div>` : ''}
     ${porTerceiro ? `<div class="popup-terceiro">Lançado por ${escaparHtml(porTerceiro)}</div>` : ''}
   </div>`;
@@ -238,9 +237,9 @@ async function desenharMapaAtividades(registros) {
   const legenda = document.getElementById('legenda-mapa');
   contagem.textContent = 'carregando…';
 
-  let porTrecho;
+  let porFilial;
   try {
-    porTrecho = await carregarEstacasDoProjeto();
+    porFilial = await estacasDosRegistros(registros);
   } catch (e) {
     if (geracao !== geracaoMapa) return;
     contagem.textContent = '';
@@ -258,7 +257,7 @@ async function desenharMapaAtividades(registros) {
 
   const ordenados = [...registros].sort((a, b) => a.criado_em.localeCompare(b.criado_em));
   for (const r of ordenados) {
-    const cobertas = estacasDoIntervaloMapa(r, porTrecho);
+    const cobertas = estacasDoIntervaloMapa(r, porFilial);
     if (cobertas.length === 0) { semCoordenada++; continue; }
     const cor = corDoServicoMapa(r.servico_notavel, servicos);
     porServico.set(r.servico_notavel, (porServico.get(r.servico_notavel) || 0) + 1);

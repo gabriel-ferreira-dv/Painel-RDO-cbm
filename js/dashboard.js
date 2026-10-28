@@ -108,6 +108,9 @@ function popularKms() {
   }
   const lista = [...kms].sort((a, b) => (Number(a) - Number(b)) || a.localeCompare(b));
   preencherSelect('filtro-km', lista.map(k => [k, `KM ${k}`]), 'Todos');
+  const comKm = temKmNosRegistros(cacheRegistros);
+  document.getElementById('filtro-km').closest('.campo-km').hidden = !comKm;
+  document.getElementById('th-local').textContent = comKm ? 'KM / Estaca' : 'Estaca';
   popularEstacas();
 }
 
@@ -157,6 +160,38 @@ function popularServicos() {
   preencherSelect('filtro-servico', ordenados('servico_notavel', base), 'Todos');
 }
 
+const CHAVE_ORDEM = 'painel_rdo_ordem';
+let ordemDosDados = 'desc';
+
+function lerOrdemSalva() {
+  try {
+    if (localStorage.getItem(CHAVE_ORDEM) === 'asc') ordemDosDados = 'asc';
+  } catch {}
+  marcarOrdem();
+}
+
+function marcarOrdem() {
+  for (const b of document.querySelectorAll('#ordem-data button')) {
+    const ativo = b.dataset.ordem === ordemDosDados;
+    b.classList.toggle('ativo', ativo);
+    b.setAttribute('aria-pressed', String(ativo));
+  }
+}
+
+function escolherOrdem(ordem) {
+  if (ordem === ordemDosDados) return;
+  ordemDosDados = ordem;
+  try { localStorage.setItem(CHAVE_ORDEM, ordem); } catch {}
+  marcarOrdem();
+  aplicarFiltrosLocais();
+}
+
+function naOrdemEscolhida(lista) {
+  const sinal = ordemDosDados === 'asc' ? 1 : -1;
+  return [...lista].sort((a, b) =>
+    sinal * (String(a.criado_em).localeCompare(String(b.criado_em)) || (a.id || 0) - (b.id || 0)));
+}
+
 function aplicarFiltrosLocais() {
   const trechos = new Set(valoresDoFiltro('filtro-trecho'));
   const kms = valoresDoFiltro('filtro-km');
@@ -167,7 +202,7 @@ function aplicarFiltrosLocais() {
   const atividades = new Set(valoresDoFiltro('filtro-atividade'));
   const servicos = new Set(valoresDoFiltro('filtro-servico'));
 
-  const registrosFiltrados = cacheRegistros.filter(r =>
+  const registrosFiltrados = naOrdemEscolhida(cacheRegistros).filter(r =>
     (!trechos.size || trechos.has(r.trecho))
     && registroCobreAlgumKm(r, kms)
     && (!filtrarEstaca || registroCobreEstacas(r, estacaDe, estacaAte))
@@ -180,7 +215,7 @@ function aplicarFiltrosLocais() {
   atualizarTextosDosSeletores();
 
   const chavesRegistros = new Set(registrosFiltrados.map(r => `${r.dispositivo_id}|${r.id_local}`));
-  const fotosFiltradas = cacheFotos.filter(f => chavesRegistros.has(`${f.dispositivo_id}|${f.registro_id_local}`));
+  const fotosFiltradas = naOrdemEscolhida(cacheFotos).filter(f => chavesRegistros.has(`${f.dispositivo_id}|${f.registro_id_local}`));
   recorteAtual = { registros: registrosFiltrados, fotos: fotosFiltradas };
 
   atualizarKpis(registrosFiltrados, fotosFiltradas);
@@ -193,7 +228,7 @@ function aplicarFiltrosLocais() {
 function atualizarKpis(registros, fotos) {
   document.getElementById('kpi-registros').textContent = registros.length;
   document.getElementById('kpi-fotos').textContent = fotos.length;
-  const encarregados = new Set(registros.map(r => r.encarregado_chave));
+  const encarregados = new Set(registros.filter(ehEncarregadoDoPainel).map(r => r.encarregado_chave));
   document.getElementById('kpi-encarregados').textContent = encarregados.size;
 }
 
@@ -279,14 +314,12 @@ function atualizarTabela(registros) {
 
   corpo.innerHTML = registros.map(r => {
     const porTerceiro = capitalizarNome(r.registrado_por_nome);
-    const km = descreverKm(r);
-    const estaca = descreverEstaca(r);
     return `
       <tr>
         <td class="col-data">${formatarDataHora(r.criado_em)}</td>
         <td class="col-encarregado">${escaparHtml(r.encarregado)}${porTerceiro ? `<span class="tag-terceiro" title="Lançado por ${escaparHtml(porTerceiro)}">por terceiro</span>` : ''}</td>
         <td class="col-trecho" data-rotulo="Trecho">${escaparHtml(r.trecho)}${r.via ? ' · ' + escaparHtml(r.via) : ''}</td>
-        <td class="col-km" data-rotulo="Local">KM ${escaparHtml(km)} · ${escaparHtml(estaca)}</td>
+        <td class="col-km" data-rotulo="Local">${escaparHtml(descreverLocal(r))}</td>
         <td class="col-servico" data-rotulo="Serviço">${escaparHtml(descreverServico(r))}</td>
         <td class="col-medicao" data-rotulo="Medição">${escaparHtml(descreverMedicao(r))}</td>
         <td class="col-acoes"><button type="button" class="botao-editar-registro" data-editar-registro="${r.id}" title="Corrigir este registro">Editar</button> <button type="button" class="botao-excluir-registro" data-excluir-registro="${r.id}" title="Excluir este registro">Excluir</button></td>
@@ -334,7 +367,9 @@ function alternarAtividades() {
 
 const FOTOS_POR_PAGINA = 48;
 
-let galeria = { itens: [], mostrados: 0, urls: new Map(), ultimoDia: null, fotosPorDia: new Map() };
+const linksDasFotos = new LinksAssinados();
+
+let galeria = { itens: [], mostrados: 0, urls: linksDasFotos, colunas: 0, fotosPorDia: new Map() };
 
 let indiceLightbox = -1;
 
@@ -346,7 +381,7 @@ function atualizarFotos(fotos, registros) {
     const dia = chaveDia(foto.criado_em);
     fotosPorDia.set(dia, (fotosPorDia.get(dia) || 0) + 1);
   }
-  galeria = { itens, mostrados: 0, urls: new Map(), ultimoDia: null, fotosPorDia };
+  galeria = { itens, mostrados: 0, urls: linksDasFotos, colunas: 0, fotosPorDia };
   fecharLightbox();
 
   document.getElementById('contagem-fotos').textContent = `${fotos.length} foto(s)`;
@@ -370,41 +405,137 @@ async function carregarMaisFotos() {
   g.carregando = true;
   botao.disabled = true;
   botao.textContent = 'Carregando fotos…';
-  const esqueletos = [];
-  for (let i = 0; i < Math.min(lote.length, 12); i++) {
+  const esqueletos = document.createElement('div');
+  esqueletos.className = 'mosaico-esqueletos';
+  esqueletos.style.setProperty('--colunas', colunasDoMosaico());
+  for (let i = 0; i < Math.min(lote.length, 8); i++) {
     const el = document.createElement('div');
     el.className = 'foto-esqueleto';
-    grade.appendChild(el);
-    esqueletos.push(el);
+    esqueletos.appendChild(el);
   }
+  grade.appendChild(esqueletos);
 
-  const originais = lote.map(i => caminhoSemCarimbo(i.foto)).filter(c => c && !urlsSemCarimbo.has(c));
-  const { data: assinadas, error } = await sb.storage
-    .from(BUCKET_FOTOS)
-    .createSignedUrls([...lote.map(i => i.foto.caminho_storage), ...originais], 3600);
-
-  esqueletos.forEach(el => el.remove());
+  const caminhos = [...new Set(lote.map(i => i.foto.caminho_storage).filter(c => c && !g.urls.has(c)))];
+  const originais = [...new Set(lote.map(i => caminhoSemCarimbo(i.foto)).filter(c => c && !urlsSemCarimbo.has(c)))];
+  let erro = null;
+  try {
+    if (caminhos.length || originais.length) {
+      const { data: assinadas, error } = await sb.storage
+        .from(BUCKET_FOTOS)
+        .createSignedUrls([...caminhos, ...originais], VALIDADE_DOS_LINKS_S);
+      if (error) throw error;
+      const ehOriginal = new Set(originais);
+      for (const a of assinadas || []) {
+        if (!a.signedUrl) continue;
+        if (ehOriginal.has(a.path)) urlsSemCarimbo.set(a.path, a.signedUrl);
+        else g.urls.set(a.path, a.signedUrl);
+      }
+    }
+  } catch (e) {
+    erro = e;
+  } finally {
+    esqueletos.remove();
+  }
   if (g !== galeria) return;
   g.carregando = false;
   botao.disabled = false;
 
-  if (error) {
+  if (erro) {
     grade.insertAdjacentHTML('beforeend',
-      `<div class="vazio grade-linha-toda">Falha ao gerar links das fotos: ${escaparHtml(error.message)}</div>`);
+      `<div class="vazio grade-linha-toda">Falha ao gerar links das fotos: ${escaparHtml(erro.message || String(erro))}</div>`);
     atualizarBotaoMaisFotos();
     return;
-  }
-  const ehOriginal = new Set(originais);
-  for (const a of assinadas) {
-    if (!a.signedUrl) continue;
-    if (ehOriginal.has(a.path)) urlsSemCarimbo.set(a.path, a.signedUrl);
-    else g.urls.set(a.path, a.signedUrl);
   }
 
   const inicio = g.mostrados;
   g.mostrados += lote.length;
-  grade.insertAdjacentHTML('beforeend', lote.map((item, i) => htmlFoto(item, inicio + i)).join(''));
+  inserirNoMosaico(grade, lote, inicio);
   atualizarBotaoMaisFotos();
+}
+
+function colunasDoMosaico() {
+  const largura = document.getElementById('grade-fotos').clientWidth || window.innerWidth;
+  return Math.max(2, Math.min(4, Math.floor(largura / 230)));
+}
+
+function montarColunas(bloco, n) {
+  bloco.innerHTML = '';
+  bloco.style.setProperty('--colunas', n);
+  for (let i = 0; i < n; i++) {
+    const coluna = document.createElement('div');
+    coluna.className = 'coluna-mosaico';
+    bloco.appendChild(coluna);
+  }
+}
+
+function colunaMaisBaixa(bloco) {
+  return [...bloco.children].reduce((menor, c) => (c.offsetHeight < menor.offsetHeight ? c : menor));
+}
+
+function criarBlocoDoDia(grade, foto) {
+  const dia = chaveDia(foto.criado_em);
+  const n = galeria.fotosPorDia.get(dia);
+  grade.insertAdjacentHTML('beforeend', `<div class="dia-fotos">${formatarDiaExtenso(foto.criado_em)}
+    <span>${n} foto${n === 1 ? '' : 's'}</span></div>`);
+  const bloco = document.createElement('div');
+  bloco.className = 'mosaico-dia';
+  bloco.dataset.dia = dia;
+  montarColunas(bloco, galeria.colunas);
+  grade.appendChild(bloco);
+  return bloco;
+}
+
+function inserirNoMosaico(grade, lote, inicio) {
+  if (!galeria.colunas) galeria.colunas = colunasDoMosaico();
+  const molde = document.createElement('template');
+  lote.forEach((item, i) => {
+    let bloco = grade.lastElementChild;
+    if (!bloco || !bloco.classList.contains('mosaico-dia') || bloco.dataset.dia !== chaveDia(item.foto.criado_em)) {
+      bloco = criarBlocoDoDia(grade, item.foto);
+    }
+    molde.innerHTML = htmlFoto(item, inicio + i).trim();
+    colunaMaisBaixa(bloco).appendChild(molde.content.firstElementChild);
+  });
+}
+
+function reorganizarMosaico() {
+  const n = colunasDoMosaico();
+  if (!galeria.colunas || n === galeria.colunas) return;
+  galeria.colunas = n;
+  for (const bloco of document.querySelectorAll('#grade-fotos .mosaico-dia')) {
+    const fotos = [...bloco.querySelectorAll('.foto-item')]
+      .sort((a, b) => Number(a.dataset.indice) - Number(b.dataset.indice));
+    montarColunas(bloco, n);
+    for (const f of fotos) colunaMaisBaixa(bloco).appendChild(f);
+  }
+}
+
+async function renovarLinksDaGaleria() {
+  const g = galeria;
+  const pendentes = [...document.querySelectorAll('#grade-fotos .foto-item')]
+    .filter(fig => !fig.querySelector('img.ok'))
+    .map(fig => ({ fig, caminho: g.itens[Number(fig.dataset.indice)]?.foto.caminho_storage }))
+    .filter(p => p.caminho && !g.urls.has(p.caminho));
+  if (pendentes.length === 0) return;
+  try {
+    const caminhos = [...new Set(pendentes.map(p => p.caminho))];
+    for (let i = 0; i < caminhos.length; i += 200) {
+      const { data, error } = await sb.storage.from(BUCKET_FOTOS)
+        .createSignedUrls(caminhos.slice(i, i + 200), VALIDADE_DOS_LINKS_S);
+      if (error) throw error;
+      for (const a of data || []) if (a.signedUrl) g.urls.set(a.path, a.signedUrl);
+    }
+  } catch (e) {
+    console.warn('Não foi possível renovar os links das fotos:', e);
+    return;
+  }
+  if (g !== galeria) return;
+  for (const p of pendentes) {
+    const url = g.urls.get(p.caminho);
+    if (!url) continue;
+    p.fig.querySelector('.foto-img').classList.remove('falhou');
+    p.fig.querySelector('img').src = url;
+  }
 }
 
 function atualizarBotaoMaisFotos() {
@@ -415,26 +546,16 @@ function atualizarBotaoMaisFotos() {
 }
 
 function htmlFoto({ foto, registro }, indice) {
-  let cabecalho = '';
-  const dia = chaveDia(foto.criado_em);
-  if (dia !== galeria.ultimoDia) {
-    galeria.ultimoDia = dia;
-    const n = galeria.fotosPorDia.get(dia);
-    cabecalho = `<div class="dia-fotos grade-linha-toda">${formatarDiaExtenso(foto.criado_em)}
-      <span>${n} foto${n === 1 ? '' : 's'}</span></div>`;
-  }
-
   const url = galeria.urls.get(foto.caminho_storage) || '';
   const nome = registro ? registro.encarregado : '';
   const servico = registro ? descreverServico(registro) : '';
   const local = registro
-    ? `${registro.trecho} · KM ${descreverKm(registro)} · Est. ${descreverEstaca(registro)}`
+    ? [registro.trecho, descreverLocal(registro, 'Est.')].filter(Boolean).join(' · ')
     : '';
-  return `${cabecalho}
+  return `
     <figure class="foto-item" data-indice="${indice}" tabindex="0" title="${escaparHtml(servico)}">
       <div class="foto-img">
-        <img src="${escaparHtml(url)}" loading="lazy" alt="Foto: ${escaparHtml(servico || 'registro')}"
-             onload="this.classList.add('ok')" onerror="this.parentNode.classList.add('falhou')">
+        <img src="${escaparHtml(url)}" loading="lazy" alt="Foto: ${escaparHtml(servico || 'registro')}">
         <span class="foto-hora">${formatarHora(foto.criado_em)}</span>
       </div>
       <figcaption>
@@ -462,15 +583,16 @@ async function abrirLightbox(indice) {
   img.alt = (r ? descreverServico(r) : 'Foto do registro') + (versao.semCarimbo ? ' (sem carimbo)' : '');
   atualizarSeletorDeCarimbo(versao.temSemCarimbo, versao.semCarimbo);
   adiantarVersoesAoRedor(indice);
+  atualizarPreviasDoLightbox(indice);
   document.getElementById('lightbox-editar').hidden = !(ehAdminPainel && r);
 
   const linhas = [];
   if (r) {
     linhas.push(`<b>${escaparHtml(r.encarregado)}</b>`);
     linhas.push(escaparHtml([r.atividade, descreverServico(r), descreverMedicao(r)].filter(Boolean).join(' · ')));
-    linhas.push(escaparHtml(`${r.trecho}${r.via ? ' · ' + r.via : ''} · KM ${descreverKm(r)} · Estaca ${descreverEstaca(r)}`));
+    linhas.push(escaparHtml([`${r.trecho}${r.via ? ' · ' + r.via : ''}`, descreverLocal(r, 'Estaca')].filter(Boolean).join(' · ')));
     if (r.editado_em) {
-      linhas.push(`<span class="lb-editado">Corrigido em ${formatarDataHora(r.editado_em)}${r.editado_por_matricula ? ` por ${escaparHtml(r.editado_por_matricula)}` : ''}</span>`);
+      linhas.push(`<span class="lb-editado">Corrigido em ${formatarDataHora(r.editado_em)}${r.editado_por_matricula ? ` por ${escaparHtml(quemCorrigiu(r.editado_por_matricula))}` : ''}</span>`);
     }
   }
   const extras = [formatarDataHora(foto.criado_em)];

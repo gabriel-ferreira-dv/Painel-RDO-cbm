@@ -100,6 +100,12 @@ document.getElementById('seletor-carimbo').addEventListener('click', (e) => {
 });
 document.getElementById('lightbox-editar').addEventListener('click', abrirEdicaoDaFotoAtual);
 document.getElementById('salvar-editar-registro').addEventListener('click', salvarEdicaoDeRegistro);
+document.getElementById('ed-trecho').addEventListener('change', aoTrocarTrechoNaEdicao);
+document.getElementById('ed-km').addEventListener('change', () => preencherEstacasDaEdicao());
+document.getElementById('ed-via').addEventListener('change', () => preencherEstacasDaEdicao());
+document.getElementById('ed-estaca-inicial').addEventListener('change', aoTrocarEstacaInicialNaEdicao);
+document.getElementById('ed-atividade').addEventListener('change', () => preencherServicosDaEdicao());
+document.getElementById('ed-servico').addEventListener('change', () => preencherPassosDaEdicao());
 document.getElementById('cancelar-editar-registro').addEventListener('click', () =>
   document.getElementById('dialogo-editar-registro').close());
 document.getElementById('form-editar-registro').addEventListener('submit', (e) => {
@@ -152,6 +158,12 @@ for (const id of ['filtro-estaca-de', 'filtro-estaca-ate', 'filtro-encarregado',
 
 document.getElementById('botao-limpar-filtros').addEventListener('click', limparFiltros);
 
+document.getElementById('ordem-data').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-ordem]');
+  if (b) escolherOrdem(b.dataset.ordem);
+});
+lerOrdemSalva();
+
 for (const id of IDS_FILTROS_LOCAIS) {
   document.getElementById(id).addEventListener('change', agendarRegistroDeFiltros);
 }
@@ -168,6 +180,18 @@ function abrirFotoDoEvento(e) {
   if (item) abrirLightbox(Number(item.dataset.indice));
 }
 gradeFotos.addEventListener('click', abrirFotoDoEvento);
+setInterval(() => { if (!document.hidden) renovarLinksDaGaleria(); }, 5 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) renovarLinksDaGaleria(); });
+gradeFotos.addEventListener('load', (e) => {
+  if (e.target.matches?.('.foto-img img')) {
+    e.target.classList.add('ok');
+    e.target.parentNode.classList.remove('falhou');
+  }
+}, true);
+gradeFotos.addEventListener('error', (e) => {
+  if (e.target.matches?.('.foto-img img') && e.target.getAttribute('src')) e.target.parentNode.classList.add('falhou');
+}, true);
+new ResizeObserver(() => reorganizarMosaico()).observe(gradeFotos);
 gradeFotos.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirFotoDoEvento(e); }
 });
@@ -177,6 +201,8 @@ const lightbox = document.getElementById('lightbox');
 document.getElementById('fechar-lightbox').addEventListener('click', fecharLightbox);
 document.getElementById('lightbox-anterior').addEventListener('click', () => navegarLightbox(-1));
 document.getElementById('lightbox-proxima').addEventListener('click', () => navegarLightbox(1));
+document.getElementById('previa-anterior').addEventListener('click', () => navegarLightbox(-1));
+document.getElementById('previa-proxima').addEventListener('click', () => navegarLightbox(1));
 lightbox.addEventListener('click', (e) => {
   if (e.target === lightbox || e.target.classList.contains('lightbox-conteudo')) fecharLightbox();
 });

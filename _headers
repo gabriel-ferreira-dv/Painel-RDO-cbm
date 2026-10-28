@@ -3,9 +3,16 @@
 # Cache-Control: sempre revalidar. Os arquivos não têm versão no nome, e um
 # index.html novo com um .js antigo do cache quebraria a página depois de
 # uma publicação.
+#
+# Content-Security-Policy-Report-Only: lista de onde o painel pode carregar
+# scripts, estilos, imagens e dados. Por enquanto só AVISA no console do
+# navegador (não bloqueia nada). Depois de usar o painel alguns dias sem
+# aparecer "Content Security Policy" no console (F12), troque o nome para
+# Content-Security-Policy para passar a bloquear.
 /*
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Cache-Control: public, max-age=0, must-revalidate
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://server.arcgisonline.com https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://server.arcgisonline.com https://cdn.jsdelivr.net; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'

@@ -15,11 +15,15 @@ function abrirExclusaoDaFotoAtual() {
   if (!item || item.foto.id == null) return;
   fotoParaExcluir = item;
   const { foto, registro: r } = item;
-  document.getElementById('previa-excluir-foto').src = galeria.urls.get(foto.caminho_storage) || '';
+  const previa = document.getElementById('previa-excluir-foto');
+  previa.src = galeria.urls.get(foto.caminho_storage) || '';
+  if (!previa.getAttribute('src')) {
+    linkAssinado(galeria.urls, foto.caminho_storage).then(url => { if (url && fotoParaExcluir === item) previa.src = url; });
+  }
   document.getElementById('info-excluir-foto').innerHTML = r
     ? `<b>${escaparHtml(descreverServico(r))}</b><br>`
       + `${escaparHtml(r.encarregado)} · ${formatarDataHora(foto.criado_em)}<br>`
-      + `${escaparHtml(r.trecho)} · KM ${escaparHtml(descreverKm(r))} · Estaca ${escaparHtml(descreverEstaca(r))}`
+      + escaparHtml([r.trecho, descreverLocal(r, 'Estaca')].filter(Boolean).join(' · '))
     : formatarDataHora(foto.criado_em);
   document.getElementById('motivo-excluir-foto').value = '';
   document.getElementById('erro-excluir-foto').hidden = true;
@@ -67,7 +71,7 @@ function abrirExclusaoDeRegistro(id) {
   document.getElementById('info-excluir-registro').innerHTML =
     `<b>${escaparHtml(descreverServico(r))}</b><br>`
     + `${escaparHtml(r.atividade)} · ${escaparHtml(r.encarregado)} · ${formatarDataHora(r.criado_em)}<br>`
-    + `${escaparHtml(r.trecho)}${r.via ? ' · ' + escaparHtml(r.via) : ''} · KM ${escaparHtml(descreverKm(r))} · Estaca ${escaparHtml(descreverEstaca(r))}`
+    + escaparHtml([`${r.trecho}${r.via ? ' · ' + r.via : ''}`, descreverLocal(r, 'Estaca')].filter(Boolean).join(' · '))
     + (descreverMedicao(r) ? `<br>Medição: ${escaparHtml(descreverMedicao(r))}` : '')
     + (qtdFotos ? `<br><b>${qtdFotos} foto(s)</b> deste registro também deixarão de aparecer.` : '');
   document.getElementById('motivo-excluir-registro').value = '';

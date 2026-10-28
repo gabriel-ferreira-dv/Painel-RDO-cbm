@@ -11,6 +11,13 @@ const NOMES_DE_EVENTO = {
   registro_excluido: 'Registro excluído',
   registro_restaurado: 'Registro restaurado',
   registro_editado: 'Registro corrigido',
+  usuario_criado: 'Usuário criado',
+  usuario_alterado: 'Acessos alterados',
+  senha_provisoria: 'Senha provisória',
+  usuario_bloqueado: 'Usuário bloqueado',
+  usuario_desbloqueado: 'Usuário desbloqueado',
+  filial_salva: 'Filial salva',
+  dados_enviados: 'Dados da obra',
 };
 
 let movimentacoesAtuais = [];
@@ -58,6 +65,20 @@ function descreverMovimentacao(evento, det = {}) {
       return `Restaurou o registro nº ${det.registro_id}`;
     case 'registro_editado':
       return `Corrigiu o registro nº ${det.registro_id}${Array.isArray(det.campos) && det.campos.length ? `: ${det.campos.join(', ')}` : ''}`;
+    case 'usuario_criado':
+      return `Criou a conta ${det.email || ''}${det.acessos ? ` · ${det.acessos}` : ''}`;
+    case 'usuario_alterado':
+      return `Alterou os acessos de ${det.email || ''}${det.acessos ? ` · ${det.acessos}` : ''}`;
+    case 'senha_provisoria':
+      return `Gerou senha provisória para ${det.email || ''}`;
+    case 'usuario_bloqueado':
+      return `Bloqueou ${det.email || ''}`;
+    case 'usuario_desbloqueado':
+      return `Desbloqueou ${det.email || ''}`;
+    case 'filial_salva':
+      return `${det.nova ? 'Criou' : 'Alterou'} a filial ${det.filial || ''}${det.config ? ' (configuração)' : ''}`;
+    case 'dados_enviados':
+      return `Enviou ${det.nome || ''} da obra ${det.filial || ''} (versão ${det.versao ?? '?'})`;
     default:
       return JSON.stringify(det);
   }
@@ -323,6 +344,10 @@ async function atualizarTudoMov() {
 
 async function iniciarPaginaAdmin() {
   aplicarTema(temaInicial());
+  if (temSessaoGuardada()) {
+    adiantarLinksDoPapel();
+    mostrarTela('pagina-admin');
+  }
   try {
     const { data } = await sb.auth.getSession();
     if (!data.session) {
@@ -370,7 +395,7 @@ document.getElementById('lixeira-fotos').addEventListener('click', (e) => {
 document.getElementById('mov-csv').addEventListener('click', baixarCsvMovimentacoes);
 document.getElementById('botao-tema').addEventListener('click', alternarTema);
 document.getElementById('botao-sair').addEventListener('click', async () => {
-  try { sessionStorage.removeItem('uso-acesso'); } catch {}
+  try { sessionStorage.removeItem('uso-acesso'); sessionStorage.removeItem('papel-admin'); } catch {}
   await sb.auth.signOut();
   location.replace('index.html');
 });
